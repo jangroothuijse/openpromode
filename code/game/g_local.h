@@ -774,7 +774,7 @@ extern	vmCvar_t	g_enableBreath;
 extern	vmCvar_t	g_singlePlayer;
 extern	vmCvar_t	g_proxMineTimeout;
 
-void	trap_Printf( const char *fmt );
+//void	trap_Printf( const char *fmt );
 void trap_Error(const char *fmt) __attribute__((noreturn));
 int		trap_Milliseconds( void );
 int	trap_RealTime( qtime_t *qtime );

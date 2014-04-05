@@ -147,7 +147,7 @@ void BotCTFSeekGoals(bot_state_t *bs);
 //set ctf goals (defend base, get enemy flag) during retreat
 void BotCTFRetreatGoals(bot_state_t *bs);
 //
-#ifdef MISSIONPACK
+#if 1
 int Bot1FCTFCarryingFlag(bot_state_t *bs);
 int BotHarvesterCarryingCubes(bot_state_t *bs);
 void Bot1FCTFSeekGoals(bot_state_t *bs);

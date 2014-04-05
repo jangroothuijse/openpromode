@@ -243,8 +243,6 @@ void QDECL G_Printf( const char *fmt, ... ) {
 	va_start (argptr, fmt);
 	Q_vsnprintf (text, sizeof(text), fmt, argptr);
 	va_end (argptr);
-
-	trap_Printf( text );
 }
 
 void QDECL G_Error( const char *fmt, ... ) {
