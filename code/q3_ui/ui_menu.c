@@ -97,7 +97,7 @@ void Main_MenuEvent (void* ptr, int event) {
 
 	switch( ((menucommon_s*)ptr)->id ) {
 	case ID_SINGLEPLAYER:
-		UI_SPLevelMenu();
+		UI_StartServerMenu( qfalse );
 		break;
 
 	case ID_MULTIPLAYER:
@@ -195,7 +195,7 @@ static void Main_MenuDraw( void ) {
 	trap_R_ClearScene();
 
 	// add the model
-
+	/*
 	memset( &ent, 0, sizeof(ent) );
 
 	adjust = 5.0 * sin( (float)uis.realtime / 5000 );
@@ -208,7 +208,7 @@ static void Main_MenuDraw( void ) {
 	VectorCopy( ent.origin, ent.oldorigin );
 
 	trap_R_AddRefEntityToScene( &ent );
-
+	*/
 	trap_R_RenderScene( &refdef );
 	
 	if (strlen(s_errorMessage.errorMessage))
@@ -310,7 +310,7 @@ void UI_MainMenu( void ) {
 	s_main.menu.wrapAround = qtrue;
 	s_main.menu.showlogo = qtrue;
 
-	y = 134;
+	y = 134; // was 134
 	s_main.singleplayer.generic.type		= MTYPE_PTEXT;
 	s_main.singleplayer.generic.flags		= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
 	s_main.singleplayer.generic.x			= 320;
@@ -353,7 +353,7 @@ void UI_MainMenu( void ) {
 	s_main.demos.string						= "DEMOS";
 	s_main.demos.color						= color_red;
 	s_main.demos.style						= style;
-
+/*
 	y += MAIN_MENU_VERTICAL_SPACING;
 	s_main.cinematics.generic.type			= MTYPE_PTEXT;
 	s_main.cinematics.generic.flags			= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
@@ -365,7 +365,7 @@ void UI_MainMenu( void ) {
 	s_main.cinematics.color					= color_red;
 	s_main.cinematics.style					= style;
 
-	if ( !uis.demoversion && UI_TeamArenaExists() ) {
+	if (UI_TeamArenaExists()) {
 		teamArena = qtrue;
 		y += MAIN_MENU_VERTICAL_SPACING;
 		s_main.teamArena.generic.type			= MTYPE_PTEXT;
@@ -379,19 +379,17 @@ void UI_MainMenu( void ) {
 		s_main.teamArena.style					= style;
 	}
 
-	if ( !uis.demoversion ) {
-		y += MAIN_MENU_VERTICAL_SPACING;
-		s_main.mods.generic.type			= MTYPE_PTEXT;
-		s_main.mods.generic.flags			= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
-		s_main.mods.generic.x				= 320;
-		s_main.mods.generic.y				= y;
-		s_main.mods.generic.id				= ID_MODS;
-		s_main.mods.generic.callback		= Main_MenuEvent; 
-		s_main.mods.string					= "MODS";
-		s_main.mods.color					= color_red;
-		s_main.mods.style					= style;
-	}
-
+	y += MAIN_MENU_VERTICAL_SPACING;
+	s_main.mods.generic.type			= MTYPE_PTEXT;
+	s_main.mods.generic.flags			= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
+	s_main.mods.generic.x				= 320;
+	s_main.mods.generic.y				= y;
+	s_main.mods.generic.id				= ID_MODS;
+	s_main.mods.generic.callback		= Main_MenuEvent; 
+	s_main.mods.string					= "MODS";
+	s_main.mods.color					= color_red;
+	s_main.mods.style					= style;
+*/
 	y += MAIN_MENU_VERTICAL_SPACING;
 	s_main.exit.generic.type				= MTYPE_PTEXT;
 	s_main.exit.generic.flags				= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
@@ -407,13 +405,11 @@ void UI_MainMenu( void ) {
 	Menu_AddItem( &s_main.menu,	&s_main.multiplayer );
 	Menu_AddItem( &s_main.menu,	&s_main.setup );
 	Menu_AddItem( &s_main.menu,	&s_main.demos );
-	Menu_AddItem( &s_main.menu,	&s_main.cinematics );
+	/*Menu_AddItem( &s_main.menu,	&s_main.cinematics );
 	if (teamArena) {
 		Menu_AddItem( &s_main.menu,	&s_main.teamArena );
 	}
-	if ( !uis.demoversion ) {
-		Menu_AddItem( &s_main.menu,	&s_main.mods );
-	}
+	Menu_AddItem( &s_main.menu,	&s_main.mods );*/
 	Menu_AddItem( &s_main.menu,	&s_main.exit );             
 
 	trap_Key_SetCatcher( KEYCATCH_UI );

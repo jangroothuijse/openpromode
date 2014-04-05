@@ -83,7 +83,7 @@ CLIENT INFO
 ======================
 CG_ParseAnimationFile
 
-Read a configuration file containing animation counts and rates
+Read a configuration file containing animation coutns and rates
 models/players/visor/animation.cfg, etc
 ======================
 */
@@ -185,7 +185,7 @@ static qboolean	CG_ParseAnimationFile( const char *filename, clientInfo_t *ci ) 
 			text_p = prev;	// unget the token
 			break;
 		}
-		Com_Printf( "unknown token '%s' in %s\n", token, filename );
+		Com_Printf( "unknown token '%s' is %s\n", token, filename );
 	}
 
 	// read information for each frame
@@ -320,6 +320,22 @@ static qboolean	CG_FindClientModelFile( char *filename, int length, clientInfo_t
 				team = "blue";
 				break;
 			}
+			case TEAM_GREEN: {
+				team = "default";
+				break;
+			}
+			case TEAM_YELLOW: {
+				team = "yellow";
+				break;
+			}
+			case TEAM_ORANGE: {
+				team = "orange";
+				break;
+			}
+			case TEAM_WHITE: {
+				team = "white";
+				break;
+			}
 			default: {
 				team = "red";
 				break;
@@ -393,6 +409,22 @@ static qboolean	CG_FindClientHeadFile( char *filename, int length, clientInfo_t 
 		switch ( ci->team ) {
 			case TEAM_BLUE: {
 				team = "blue";
+				break;
+			}
+			case TEAM_GREEN: {
+				team = "default";
+				break;
+			}
+			case TEAM_YELLOW: {
+				team = "yellow";
+				break;
+			}
+			case TEAM_ORANGE: {
+				team = "orange";
+				break;
+			}
+			case TEAM_WHITE: {
+				team = "white";
 				break;
 			}
 			default: {
@@ -656,7 +688,7 @@ static void CG_LoadClientInfo( int clientNum, clientInfo_t *ci ) {
 	char		teamname[MAX_QPATH];
 
 	teamname[0] = 0;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if( cgs.gametype >= GT_TEAM) {
 		if( ci->team == TEAM_BLUE ) {
 			Q_strncpyz(teamname, cg_blueTeamName.string, sizeof(teamname) );
@@ -669,10 +701,10 @@ static void CG_LoadClientInfo( int clientNum, clientInfo_t *ci ) {
 	}
 #endif
 	modelloaded = qtrue;
-	if ( !CG_RegisterClientModelname( ci, ci->modelName, ci->skinName, ci->headModelName, ci->headSkinName, teamname ) ) {
-		if ( cg_buildScript.integer ) {
-			CG_Error( "CG_RegisterClientModelname( %s, %s, %s, %s %s ) failed", ci->modelName, ci->skinName, ci->headModelName, ci->headSkinName, teamname );
-		}
+	//if ( !CG_RegisterClientModelname( ci, ci->modelName, ci->skinName, ci->headModelName, ci->headSkinName, teamname ) ) {
+		//if ( cg_buildScript.integer ) {
+		//	CG_Error( "CG_RegisterClientModelname( %s, %s, %s, %s %s ) failed", ci->modelName, ci->skinName, ci->headModelName, ci->headSkinName, teamname );
+		//}
 
 		// fall back to default team name
 		if( cgs.gametype >= GT_TEAM) {
@@ -691,7 +723,7 @@ static void CG_LoadClientInfo( int clientNum, clientInfo_t *ci ) {
 			}
 		}
 		modelloaded = qfalse;
-	}
+	//}
 
 	ci->newAnims = qfalse;
 	if ( ci->torsoModel ) {
@@ -932,6 +964,8 @@ void CG_NewClientInfo( int clientNum ) {
 	// team
 	v = Info_ValueForKey( configstring, "t" );
 	newInfo.team = atoi( v );
+
+	//Com_Printf("newInfo.team = %i\n", atoi(v));
 
 	// team task
 	v = Info_ValueForKey( configstring, "tt" );
@@ -1532,7 +1566,7 @@ static void CG_HasteTrail( centity_t *cent ) {
 	smoke->leType = LE_SCALE_FADE;
 }
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ===============
 CG_BreathPuffs
@@ -1696,7 +1730,7 @@ static void CG_PlayerFlag( centity_t *cent, qhandle_t hSkin, refEntity_t *torso 
 		dir[2] += 100;
 		VectorNormalize( dir );
 		d = DotProduct(pole.axis[2], dir);
-		// if there is enough movement orthogonal to the flag pole
+		// if there is anough movement orthogonal to the flag pole
 		if (fabs(d) < 0.9) {
 			//
 			d = DotProduct(pole.axis[0], dir);
@@ -1762,7 +1796,7 @@ static void CG_PlayerFlag( centity_t *cent, qhandle_t hSkin, refEntity_t *torso 
 }
 
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ===============
 CG_PlayerTokens
@@ -2244,7 +2278,7 @@ void CG_Player( centity_t *cent ) {
 	int				renderfx;
 	qboolean		shadow;
 	float			shadowPlane;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	refEntity_t		skull;
 	refEntity_t		powerup;
 	int				t;
@@ -2305,7 +2339,7 @@ void CG_Player( centity_t *cent ) {
 		renderfx |= RF_SHADOW_PLANE;
 	}
 	renderfx |= RF_LIGHTING_ORIGIN;			// use the same origin for all
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if( cgs.gametype == GT_HARVESTER ) {
 		CG_PlayerTokens( cent, renderfx );
 	}
@@ -2349,7 +2383,7 @@ void CG_Player( centity_t *cent ) {
 
 	CG_AddRefEntityWithPowerups( &torso, &cent->currentState, ci->team );
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if ( cent->currentState.eFlags & EF_KAMIKAZE ) {
 
 		memset( &skull, 0, sizeof(skull) );
@@ -2571,7 +2605,7 @@ void CG_Player( centity_t *cent ) {
 
 	CG_AddRefEntityWithPowerups( &head, &cent->currentState, ci->team );
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	CG_BreathPuffs(cent, &head);
 
 	CG_DustTrail(cent);
@@ -2615,7 +2649,7 @@ void CG_ResetPlayerEntity( centity_t *cent ) {
 	cent->pe.legs.pitchAngle = 0;
 	cent->pe.legs.pitching = qfalse;
 
-	memset( &cent->pe.torso, 0, sizeof( cent->pe.torso ) );
+	memset( &cent->pe.torso, 0, sizeof( cent->pe.legs ) );
 	cent->pe.torso.yawAngle = cent->rawAngles[YAW];
 	cent->pe.torso.yawing = qfalse;
 	cent->pe.torso.pitchAngle = cent->rawAngles[PITCH];

@@ -220,7 +220,6 @@ static void CG_InterpolatePlayerState( qboolean grabAngles ) {
 
 		cmdNum = trap_GetCurrentCmdNumber();
 		trap_GetUserCmd( cmdNum, &cmd );
-
 		PM_UpdateViewAngles( out, &cmd );
 	}
 
@@ -281,19 +280,19 @@ static void CG_TouchItem( centity_t *cent ) {
 
 	// Special case for flags.  
 	// We don't predict touching our own flag
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	if( cgs.gametype == GT_1FCTF ) {
-		if( item->giType == IT_TEAM && item->giTag != PW_NEUTRALFLAG ) {
+		if( item->giTag != PW_NEUTRALFLAG ) {
 			return;
 		}
 	}
-#endif
+//#endif
 	if( cgs.gametype == GT_CTF ) {
 		if (cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_RED &&
-			item->giType == IT_TEAM && item->giTag == PW_REDFLAG)
+			item->giTag == PW_REDFLAG)
 			return;
 		if (cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_BLUE &&
-			item->giType == IT_TEAM && item->giTag == PW_BLUEFLAG)
+			item->giTag == PW_BLUEFLAG)
 			return;
 	}
 
@@ -534,9 +533,9 @@ void CG_PredictPlayerState( void ) {
 				}
 				cg.thisFrameTeleport = qfalse;
 			} else {
-				vec3_t adjusted, new_angles;
+				vec3_t	adjusted;
 				CG_AdjustPositionForMover( cg.predictedPlayerState.origin, 
-				cg.predictedPlayerState.groundEntityNum, cg.physicsTime, cg.oldTime, adjusted, cg.predictedPlayerState.viewangles, new_angles);
+					cg.predictedPlayerState.groundEntityNum, cg.physicsTime, cg.oldTime, adjusted );
 
 				if ( cg_showmiss.integer ) {
 					if (!VectorCompare( oldPlayerState.origin, adjusted )) {
@@ -604,7 +603,7 @@ void CG_PredictPlayerState( void ) {
 	// adjust for the movement of the groundentity
 	CG_AdjustPositionForMover( cg.predictedPlayerState.origin, 
 		cg.predictedPlayerState.groundEntityNum, 
-		cg.physicsTime, cg.time, cg.predictedPlayerState.origin, cg.predictedPlayerState.viewangles, cg.predictedPlayerState.viewangles);
+		cg.physicsTime, cg.time, cg.predictedPlayerState.origin );
 
 	if ( cg_showmiss.integer ) {
 		if (cg.predictedPlayerState.eventSequence > oldPlayerState.eventSequence + MAX_PS_EVENTS) {

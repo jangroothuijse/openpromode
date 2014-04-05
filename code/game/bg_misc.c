@@ -95,6 +95,22 @@ gitem_t	bg_itemlist[] =
 /* sounds */ ""
 	},
 
+	/*QUAKED item_armor_combat (.3 .3 1) (-16 -16 -16) (16 16 16) suspended
+	*/
+		{
+			"item_armor_jacket",
+			"sound/misc/ar2_pkup.wav",
+	        { "models/powerups/armor/armor_gre.md3",
+			NULL, NULL, NULL},
+	/* icon */		"icons/iconr_green",
+	/* pickup */	"Armor",
+			25,
+			IT_ARMOR,
+			0,
+	/* precache */ "",
+	/* sounds */ ""
+		},
+
 /*QUAKED item_armor_body (.3 .3 1) (-16 -16 -16) (16 16 16) suspended
 */
 	{
@@ -821,6 +837,7 @@ Only in CTF games
 	/*QUAKED team_CTF_neutralflag (0 0 1) (-16 -16 -16) (16 16 16)
 Only in One Flag CTF games
 */
+#endif
 	{
 		"team_CTF_neutralflag",
 		NULL,
@@ -862,6 +879,7 @@ Only in One Flag CTF games
 /* precache */ "",
 /* sounds */ ""
 	},
+#ifdef MISSIONPACK
 /*QUAKED weapon_nailgun (.3 .3 1) (-16 -16 -16) (16 16 16) suspended
 */
 	{
@@ -1038,7 +1056,7 @@ This needs to be the same for client side prediction and server use.
 */
 qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const playerState_t *ps ) {
 	gitem_t	*item;
-#ifdef MISSIONPACK
+#if 1
 	int		upperBound;
 #endif
 
@@ -1053,44 +1071,28 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 		return qtrue;	// weapons are always picked up
 
 	case IT_AMMO:
-		if ( ps->ammo[ item->giTag ] >= 200 ) {
+		if ( ps->ammo[ item->giTag ] >= WeaponMaxAmmo(item->giTag) ) {
 			return qfalse;		// can't hold any more
 		}
 		return qtrue;
 
 	case IT_ARMOR:
-#ifdef MISSIONPACK
-		if( bg_itemlist[ps->stats[STAT_PERSISTANT_POWERUP]].giTag == PW_SCOUT ) {
-			return qfalse;
-		}
 
-		// we also clamp armor to the maxhealth for handicapping
-		if( bg_itemlist[ps->stats[STAT_PERSISTANT_POWERUP]].giTag == PW_GUARD ) {
-			upperBound = ps->stats[STAT_MAX_HEALTH];
-		}
-		else {
-			upperBound = ps->stats[STAT_MAX_HEALTH] * 2;
-		}
-
-		if ( ps->stats[STAT_ARMOR] >= upperBound ) {
-			return qfalse;
-		}
-#else
-		if ( ps->stats[STAT_ARMOR] >= ps->stats[STAT_MAX_HEALTH] * 2 ) {
-			return qfalse;
-		}
-#endif
-		return qtrue;
+		// pro mode system
+		if (item->quantity == 100) // RA
+		{
+			return (ps->stats[STAT_ARMOR] <= 200) ? qtrue : qfalse;
+		} else if (item->quantity == 50) // YA
+		{
+			return (ps->stats[STAT_ARMOR] <= 150) ? qtrue : qfalse;
+		} else if (item->quantity == 25) { // GA
+			return (ps->stats[STAT_ARMOR] <= 100) ? qtrue : qfalse;
+		} else return qtrue; // shards can allways be grabbed.
 
 	case IT_HEALTH:
 		// small and mega healths will go over the max, otherwise
 		// don't pick up if already at max
-#ifdef MISSIONPACK
-		if( bg_itemlist[ps->stats[STAT_PERSISTANT_POWERUP]].giTag == PW_GUARD ) {
-			upperBound = ps->stats[STAT_MAX_HEALTH];
-		}
-		else
-#endif
+
 		if ( item->quantity == 5 || item->quantity == 100 ) {
 			if ( ps->stats[STAT_HEALTH] >= ps->stats[STAT_MAX_HEALTH] * 2 ) {
 				return qfalse;
@@ -1106,7 +1108,7 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 	case IT_POWERUP:
 		return qtrue;	// powerups are always picked up
 
-#ifdef MISSIONPACK
+#if 1
 	case IT_PERSISTANT_POWERUP:
 		// can only hold one item at a time
 		if ( ps->stats[STAT_PERSISTANT_POWERUP] ) {
@@ -1125,7 +1127,7 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 #endif
 
 	case IT_TEAM: // team items, such as flags
-#ifdef MISSIONPACK		
+//#if 1
 		if( gametype == GT_1FCTF ) {
 			// neutral flag can always be picked up
 			if( item->giTag == PW_NEUTRALFLAG ) {
@@ -1141,7 +1143,7 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 				}
 			}
 		}
-#endif
+//#endif
 		if( gametype == GT_CTF ) {
 			// ent->modelindex2 is non-zero on items if they are dropped
 			// we need to know this because we can pick up our dropped flag (and return it)
@@ -1159,11 +1161,11 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 			}
 		}
 
-#ifdef MISSIONPACK
+//#if 1
 		if( gametype == GT_HARVESTER ) {
 			return qtrue;
 		}
-#endif
+//#endif
 		return qfalse;
 
 	case IT_HOLDABLE:
@@ -1229,7 +1231,7 @@ void BG_EvaluateTrajectory( const trajectory_t *tr, int atTime, vec3_t result ) 
 		result[2] -= 0.5 * DEFAULT_GRAVITY * deltaTime * deltaTime;		// FIXME: local gravity...
 		break;
 	default:
-		Com_Error( ERR_DROP, "BG_EvaluateTrajectory: unknown trType: %i", tr->trType );
+		Com_Error( ERR_DROP, "BG_EvaluateTrajectory: unknown trType: %i", tr->trTime );
 		break;
 	}
 }
@@ -1272,7 +1274,7 @@ void BG_EvaluateTrajectoryDelta( const trajectory_t *tr, int atTime, vec3_t resu
 		result[2] -= DEFAULT_GRAVITY * deltaTime;		// FIXME: local gravity...
 		break;
 	default:
-		Com_Error( ERR_DROP, "BG_EvaluateTrajectoryDelta: unknown trType: %i", tr->trType );
+		Com_Error( ERR_DROP, "BG_EvaluateTrajectoryDelta: unknown trType: %i", tr->trTime );
 		break;
 	}
 }
@@ -1361,7 +1363,7 @@ char *eventnames[] = {
 	"EV_GIB_PLAYER",			// gib a previously living player
 	"EV_SCOREPLUM",			// score plum
 
-//#ifdef MISSIONPACK
+//#if 1
 	"EV_PROXIMITY_MINE_STICK",
 	"EV_PROXIMITY_MINE_TRIGGER",
 	"EV_KAMIKAZE",			// kamikaze explodes
@@ -1447,11 +1449,26 @@ void BG_TouchJumpPad( playerState_t *ps, entityState_t *jumppad ) {
 		}
 		BG_AddPredictableEventToPlayerstate( EV_JUMP_PAD, effectNum, ps );
 	}
+
+	// Consecutive jumppad jumps dont alter the speed,
+	// you only get back your original
+	if (ps->stats[STAT_PRE_JUMPPAD_SPEED] == 0) {
+		float speed = abs (sqrt (
+				(ps->velocity[0]) * (ps->velocity[0])
+			  + (ps->velocity[1]) * (ps->velocity[1])) );
+		float jpSpeed = 300.0 + (abs (sqrt (
+				(jumppad->origin2[0]) * (jumppad->origin2[0])
+			  + (jumppad->origin2[1]) * (jumppad->origin2[1])) ) );
+		if (speed > jpSpeed) // Subtraction is import for non-purely-vertical jps
+			ps->stats[STAT_PRE_JUMPPAD_SPEED] = speed - jpSpeed;
+	}
+
 	// remember hitting this jumppad this frame
 	ps->jumppad_ent = jumppad->number;
 	ps->jumppad_frame = ps->pmove_framecount;
 	// give the player the velocity from the jumppad
 	VectorCopy( jumppad->origin2, ps->velocity );
+
 }
 
 /*
@@ -1608,4 +1625,14 @@ void BG_PlayerStateToEntityStateExtraPolate( playerState_t *ps, entityState_t *s
 
 	s->loopSound = ps->loopSound;
 	s->generic1 = ps->generic1;
+}
+
+int WeaponMaxAmmo(int weapon) {
+	switch (weapon) {
+		case WP_SHOTGUN: return 50;
+		case WP_ROCKET_LAUNCHER: return 30;
+		case WP_LIGHTNING: return 80;
+		case WP_RAILGUN: return 50;
+		default: return 200;
+	}
 }

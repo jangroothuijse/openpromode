@@ -29,15 +29,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define	DEFAULT_GRAVITY		800
 #define	GIB_HEALTH			-40
-#define	ARMOR_PROTECTION	0.66
+#define	ARMOR_PROTECTION	0.5
+#define CPM_YAPROTECTION	0.66
+#define CPM_RAPROTECTION	0.75
 
 #define	MAX_ITEMS			256
 
 #define	RANK_TIED_FLAG		0x4000
 
-#define DEFAULT_SHOTGUN_SPREAD	700
+#define DEFAULT_SHOTGUN_SPREAD	900
 #define DEFAULT_SHOTGUN_COUNT	11
-
+// TODO See if we can make it easier to pick up items!
 #define	ITEM_RADIUS			15		// item sizes are needed for client side pickup detection
 
 #define	LIGHTNING_RANGE		768
@@ -63,26 +65,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define	CS_WARMUP				5		// server time when the match will be restarted
 #define	CS_SCORES1				6
 #define	CS_SCORES2				7
-#define CS_VOTE_TIME			8
-#define CS_VOTE_STRING			9
-#define	CS_VOTE_YES				10
-#define	CS_VOTE_NO				11
+#define	CS_SCORES3				8
+#define	CS_SCORES4				9
+#define	CS_SCORES5				10
+#define	CS_SCORES6				11
+#define CS_VOTE_TIME			12
+#define CS_VOTE_STRING			13
+#define	CS_VOTE_YES				14
+#define	CS_VOTE_NO				15
 
-#define CS_TEAMVOTE_TIME		12
-#define CS_TEAMVOTE_STRING		14
-#define	CS_TEAMVOTE_YES			16
-#define	CS_TEAMVOTE_NO			18
+#define CS_TEAMVOTE_TIME		16
+#define CS_TEAMVOTE_STRING		18
+#define	CS_TEAMVOTE_YES			20
+#define	CS_TEAMVOTE_NO			22
 
-#define	CS_GAME_VERSION			20
-#define	CS_LEVEL_START_TIME		21		// so the timer only shows the current level
-#define	CS_INTERMISSION			22		// when 1, fraglimit/timelimit has been hit and intermission will start in a second or two
-#define CS_FLAGSTATUS			23		// string indicating flag status in CTF
-#define CS_SHADERSTATE			24
-#define CS_BOTINFO				25
+#define	CS_GAME_VERSION			24
+#define	CS_LEVEL_START_TIME		25		// so the timer only shows the current level
+#define	CS_INTERMISSION			26		// when 1, fraglimit/timelimit has been hit and intermission will start in a second or two
+#define CS_FLAGSTATUS			27		// string indicating flag status in CTF
+#define CS_SHADERSTATE			28
+#define CS_BOTINFO				29
 
-#define	CS_ITEMS				27		// string of 0's and 1's that tell which items are present
+#define	CS_ITEMS				33		// string of 0's and 1's that tell which items are present
 
-#define	CS_MODELS				32
+#define	CS_MODELS				36
 #define	CS_SOUNDS				(CS_MODELS+MAX_MODELS)
 #define	CS_PLAYERS				(CS_SOUNDS+MAX_SOUNDS)
 #define CS_LOCATIONS			(CS_PLAYERS+MAX_CLIENTS)
@@ -102,10 +108,31 @@ typedef enum {
 	//-- team games go after this --
 
 	GT_TEAM,			// team deathmatch
+
+	//-- team games that uses bases go after this
+
 	GT_CTF,				// capture the flag
 	GT_1FCTF,
 	GT_OBELISK,
 	GT_HARVESTER,
+
+	GT_FT,					// Freeze tag
+
+	GT_ELIMINATION,			// team elimination (custom)
+	//GT_CTF_ELIMINATION,		// ctf elimination
+	//GT_LMS,				// Last man standing
+	//	TODO ADD:
+	//	* Elemination
+	//	* CTF Elimination
+
+	GT_MULTI_TEAM, // Multi team deathmatch
+	// GT_MUTLI_TEAM_TOURNAMENT,
+	// GT_DOUBLE_CTF
+		// colored flags needs to be captured to white in succesion by 1 team in.
+	// GT_ONE_WAT_CTF
+	// GT_TRIPLE DOMINATION
+	// -- multi team games go after this
+
 	GT_MAX_GAME_TYPE
 } gametype_t;
 
@@ -129,7 +156,7 @@ typedef enum {
 	PM_DEAD,		// no acceleration or turning, but free falling
 	PM_FREEZE,		// stuck in place with no control
 	PM_INTERMISSION,	// no movement or status bar
-	PM_SPINTERMISSION	// no movement or status bar
+	PM_SPINTERMISSION,	// no movement or status bar
 } pmtype_t;
 
 typedef enum {
@@ -203,14 +230,18 @@ void Pmove (pmove_t *pmove);
 typedef enum {
 	STAT_HEALTH,
 	STAT_HOLDABLE_ITEM,
-#ifdef MISSIONPACK
+#if 1
 	STAT_PERSISTANT_POWERUP,
 #endif
 	STAT_WEAPONS,					// 16 bit fields
 	STAT_ARMOR,				
 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
 	STAT_CLIENTS_READY,				// bit mask of clients wishing to exit the intermission (FIXME: configstring?)
-	STAT_MAX_HEALTH					// health / armor limit, changable by handicap
+	STAT_MAX_HEALTH,					// health / armor limit, changable by handicap
+	STAT_JUMPTIME,					// Time for chainjumping
+	STAT_MELEETIME,
+	STAT_ARMORTYPE,					// CPM: Added for armortypes (0=GA, 1=YA, 2=RA)
+	STAT_PRE_JUMPPAD_SPEED			// Magnitude of horizontal speed before hitting jumppad
 } statIndex_t;
 
 
@@ -240,7 +271,7 @@ typedef enum {
 
 // entityState_t->eFlags
 #define	EF_DEAD				0x00000001		// don't draw a foe marker over players with EF_DEAD
-#ifdef MISSIONPACK
+#if 1
 #define EF_TICKING			0x00000002		// used to make players play the prox mine ticking sound
 #endif
 #define	EF_TELEPORT_BIT		0x00000004		// toggled every time the origin abruptly changes
@@ -314,7 +345,7 @@ typedef enum {
 	WP_PLASMAGUN,
 	WP_BFG,
 	WP_GRAPPLING_HOOK,
-#ifdef MISSIONPACK
+#if 1
 	WP_NAILGUN,
 	WP_PROX_LAUNCHER,
 	WP_CHAINGUN,
@@ -330,7 +361,7 @@ typedef enum {
 #define PLAYEREVENT_HOLYSHIT			0x0004
 
 // entityState_t->event values
-// entity events are for effects that take place relative
+// entity events are for effects that take place reletive
 // to an existing entities origin.  Very network efficient.
 
 // two bits at the top of the entityState->event field
@@ -428,7 +459,7 @@ typedef enum {
 	EV_GIB_PLAYER,			// gib a previously living player
 	EV_SCOREPLUM,			// score plum
 
-//#ifdef MISSIONPACK
+//#if 1
 	EV_PROXIMITY_MINE_STICK,
 	EV_PROXIMITY_MINE_TRIGGER,
 	EV_KAMIKAZE,			// kamikaze explodes
@@ -447,8 +478,11 @@ typedef enum {
 	EV_TAUNT_FOLLOWME,
 	EV_TAUNT_GETFLAG,
 	EV_TAUNT_GUARDBASE,
-	EV_TAUNT_PATROL
+	EV_TAUNT_PATROL,
 
+	// Melee attack event.
+	EV_MELEE,
+	EV_SLIDE_MELEE
 } entity_event_t;
 
 
@@ -540,13 +574,17 @@ typedef struct animation_s {
 // changes so a restart of the same anim can be detected
 #define	ANIM_TOGGLEBIT		128
 
-
+// TODO see if we can increase the number of teams, so that elimination and FT can
+// use 2-5 teams, GREEN, YELLOW, ORANGE
 typedef enum {
 	TEAM_FREE,
 	TEAM_RED,
 	TEAM_BLUE,
+	TEAM_GREEN,
+	TEAM_YELLOW,
+	TEAM_ORANGE,
+	TEAM_WHITE,
 	TEAM_SPECTATOR,
-
 	TEAM_NUM_TEAMS
 } team_t;
 
@@ -593,7 +631,7 @@ typedef enum {
 	MOD_SUICIDE,
 	MOD_TARGET_LASER,
 	MOD_TRIGGER_HURT,
-#ifdef MISSIONPACK
+#if 1
 	MOD_NAIL,
 	MOD_CHAINGUN,
 	MOD_PROXIMITY_MINE,
@@ -705,6 +743,8 @@ void	BG_PlayerStateToEntityStateExtraPolate( playerState_t *ps, entityState_t *s
 
 qboolean	BG_PlayerTouchesItem( playerState_t *ps, entityState_t *item, int atTime );
 
+void	PM_ReduceWeaponTime(int milis);
+int WeaponMaxAmmo(int weapon);
 
 #define ARENAS_PER_TIER		4
 #define MAX_ARENAS			1024
@@ -735,4 +775,3 @@ qboolean	BG_PlayerTouchesItem( playerState_t *ps, entityState_t *item, int atTim
 #define KAMI_SHOCKWAVE_MAXRADIUS		1320
 #define KAMI_BOOMSPHERE_MAXRADIUS		720
 #define KAMI_SHOCKWAVE2_MAXRADIUS		704
-

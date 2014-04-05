@@ -359,6 +359,9 @@ CG_TeamColor
 float *CG_TeamColor( int team ) {
 	static vec4_t	red = {1, 0.2f, 0.2f, 1};
 	static vec4_t	blue = {0.2f, 0.2f, 1, 1};
+	static vec4_t	green = {0.2, 1, 1, 1};
+	static vec4_t	yellow = {1, 1, 0.2, 1};
+	static vec4_t	orange = {1, 0.6, 0.2, 1};
 	static vec4_t	other = {1, 1, 1, 1};
 	static vec4_t	spectator = {0.7f, 0.7f, 0.7f, 1};
 
@@ -367,6 +370,12 @@ float *CG_TeamColor( int team ) {
 		return red;
 	case TEAM_BLUE:
 		return blue;
+	case TEAM_GREEN:
+		return green;
+	case TEAM_YELLOW:
+		return yellow;
+	case TEAM_ORANGE:
+		return orange;
 	case TEAM_SPECTATOR:
 		return spectator;
 	default:

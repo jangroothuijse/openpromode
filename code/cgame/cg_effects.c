@@ -194,7 +194,7 @@ void CG_SpawnEffect( vec3_t org ) {
 	AxisClear( re->axis );
 
 	VectorCopy( org, re->origin );
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	re->origin[2] += 16;
 #else
 	re->origin[2] -= 24;
@@ -202,7 +202,7 @@ void CG_SpawnEffect( vec3_t org ) {
 }
 
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ===============
 CG_LightningBoltBeam
@@ -258,7 +258,7 @@ void CG_KamikazeEffect( vec3_t org ) {
 	VectorCopy( org, re->origin );
 
 }
-
+#endif
 /*
 ==================
 CG_ObeliskExplode
@@ -302,7 +302,7 @@ void CG_ObeliskPain( vec3_t org ) {
 	trap_S_StartSound ( org, ENTITYNUM_NONE, CHAN_BODY, sfx );
 }
 
-
+#ifdef MISSIONPACK
 /*
 ==================
 CG_InvulnerabilityImpact
@@ -640,7 +640,7 @@ void CG_GibPlayer( vec3_t playerOrigin ) {
 
 /*
 ==================
-CG_LaunchExplode
+CG_LaunchGib
 ==================
 */
 void CG_LaunchExplode( vec3_t origin, vec3_t velocity, qhandle_t hModel ) {
@@ -673,7 +673,7 @@ void CG_LaunchExplode( vec3_t origin, vec3_t velocity, qhandle_t hModel ) {
 #define	EXP_JUMP		150
 /*
 ===================
-CG_BigExplode
+CG_GibPlayer
 
 Generated a bunch of gibs launching out from the bodies location
 ===================

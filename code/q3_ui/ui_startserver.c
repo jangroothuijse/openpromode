@@ -46,6 +46,7 @@ START SERVER MENU *****
 #define GAMESERVER_ARROWS		"menu/art/gs_arrows_0"
 #define GAMESERVER_ARROWSL		"menu/art/gs_arrows_l"
 #define GAMESERVER_ARROWSR		"menu/art/gs_arrows_r"
+#define STANDARD_BOT			"promarine"
 
 #define MAX_MAPROWS		2
 #define MAX_MAPCOLS		2
@@ -93,11 +94,45 @@ static const char *gametype_items[] = {
 	"Team Deathmatch",
 	"Tournament",
 	"Capture the Flag",
+        "One Flag Capture",
+       // "Overload",
+       // "Harvester",
+	"Elimination",
+	//"CTF Elimination",
+	//"Last Man Standing",
+	//"Freeze Tag",
+	"Multiteam Deathmatch",
 	NULL
 };
 
-static int gametype_remap[] = {GT_FFA, GT_TEAM, GT_TOURNAMENT, GT_CTF};
-static int gametype_remap2[] = {0, 2, 0, 1, 3};
+static int gametype_remap[] = {
+		GT_FFA,
+		GT_TEAM,
+		GT_TOURNAMENT,
+		GT_CTF,
+                GT_1FCTF,
+          //      GT_OBELISK,
+          //      GT_HARVESTER,
+		GT_ELIMINATION,
+		//GT_CTF_ELIMINATION,
+		//GT_LMS,
+		//GT_FT,
+		GT_MULTI_TEAM};
+
+static int gametype_remap2[] = {
+		0, // ffa
+		2, // team
+		0, // tournament
+		1, // ctf
+		3, // 1f ctf
+		//4,
+		//5,
+		2, // elemination
+		//2,
+		//2,
+		//2, // freeze
+		2, // multi team
+		};		//this works and should increment for more gametypes if bots know the number
 
 // use ui_servers2.c definition
 extern const char* punkbuster_items[];
@@ -125,11 +160,16 @@ static int GametypeBits( char *string ) {
 
 		if( Q_stricmp( token, "ffa" ) == 0 ) {
 			bits |= 1 << GT_FFA;
+			//bits |= 1 << GT_LMS;
 			continue;
 		}
 
 		if( Q_stricmp( token, "tourney" ) == 0 ) {
 			bits |= 1 << GT_TOURNAMENT;
+			bits |= 1 << GT_FFA;
+			bits |= 1 << GT_TEAM;
+			bits |= 1 << GT_MULTI_TEAM;
+			bits |= 1 << GT_ELIMINATION;
 			continue;
 		}
 
@@ -140,11 +180,29 @@ static int GametypeBits( char *string ) {
 
 		if( Q_stricmp( token, "team" ) == 0 ) {
 			bits |= 1 << GT_TEAM;
+			bits |= 1 << GT_ELIMINATION;
+			bits |= 1 << GT_FT;
+			bits |= 1 << GT_MULTI_TEAM;
 			continue;
 		}
 
 		if( Q_stricmp( token, "ctf" ) == 0 ) {
 			bits |= 1 << GT_CTF;
+			continue;
+		}
+
+		if( Q_stricmp( token, "oneflag" ) == 0 ) {
+			bits |= 1 << GT_1FCTF;
+			continue;
+		}
+
+		if( Q_stricmp( token, "overload" ) == 0 ) {
+			bits |= 1 << GT_OBELISK;
+			continue;
+		}
+
+		if( Q_stricmp( token, "harvester" ) == 0 ) {
+			bits |= 1 << GT_HARVESTER;
 			continue;
 		}
 	}
@@ -679,6 +737,16 @@ static const char *playerTeam_list[] = {
 	NULL
 };
 
+static const char *playerMultiTeam_list[] = {
+	"Blue",
+	"Red",
+	"Green",
+	"Yellow",
+	"Orange",
+	"White",
+	NULL
+};
+
 static const char *botSkill_list[] = {
 	"I Can Win",
 	"Bring It On",
@@ -769,7 +837,26 @@ static void ServerOptions_Start( void ) {
 		trap_Cvar_SetValue( "ui_team_friendly", friendlyfire );
 		break;
 
+	case GT_MULTI_TEAM:
+		trap_Cvar_SetValue( "ui_team_fraglimit", fraglimit );
+		trap_Cvar_SetValue( "ui_team_timelimit", timelimit );
+		trap_Cvar_SetValue( "ui_team_friendly", friendlyfire );
+		break;
+
+
 	case GT_CTF:
+		trap_Cvar_SetValue( "ui_ctf_capturelimit", flaglimit );
+		trap_Cvar_SetValue( "ui_ctf_timelimit", timelimit );
+		trap_Cvar_SetValue( "ui_ctf_friendly", friendlyfire );
+		break;
+
+	case GT_1FCTF:
+		trap_Cvar_SetValue( "ui_ctf_capturelimit", flaglimit );
+		trap_Cvar_SetValue( "ui_ctf_timelimit", timelimit );
+		trap_Cvar_SetValue( "ui_ctf_friendly", friendlyfire );
+		break;
+
+	case GT_ELIMINATION:
 		trap_Cvar_SetValue( "ui_ctf_capturelimit", flaglimit );
 		trap_Cvar_SetValue( "ui_ctf_timelimit", timelimit );
 		trap_Cvar_SetValue( "ui_ctf_friendly", friendlyfire );
@@ -803,9 +890,15 @@ static void ServerOptions_Start( void ) {
 		if( s_serveroptions.playerNameBuffers[n][0] == '-' ) {
 			continue;
 		}
-		if( s_serveroptions.gametype >= GT_TEAM ) {
-			Com_sprintf( buf, sizeof(buf), "addbot %s %i %s\n", s_serveroptions.playerNameBuffers[n], skill,
+		if( s_serveroptions.gametype >= GT_TEAM) {
+			if (s_serveroptions.gametype >= GT_MULTI_TEAM) {
+				Com_sprintf( buf, sizeof(buf), "addbot %s %i %s\n", s_serveroptions.playerNameBuffers[n], skill,
+				playerMultiTeam_list[s_serveroptions.playerTeam[n].curvalue] );
+			} else {
+				Com_sprintf( buf, sizeof(buf), "addbot %s %i %s\n", s_serveroptions.playerNameBuffers[n], skill,
 				playerTeam_list[s_serveroptions.playerTeam[n].curvalue] );
+			}
+
 		}
 		else {
 			Com_sprintf( buf, sizeof(buf), "addbot %s %i\n", s_serveroptions.playerNameBuffers[n], skill );
@@ -1037,10 +1130,10 @@ static void ServerOptions_InitBotNames( void ) {
 	char		bots[MAX_INFO_STRING];
 
 	if( s_serveroptions.gametype >= GT_TEAM ) {
-		Q_strncpyz( s_serveroptions.playerNameBuffers[1], "grunt", 16 );
-		Q_strncpyz( s_serveroptions.playerNameBuffers[2], "major", 16 );
+		Q_strncpyz( s_serveroptions.playerNameBuffers[1], STANDARD_BOT, 16 );
+		Q_strncpyz( s_serveroptions.playerNameBuffers[2], STANDARD_BOT, 16 );
 		if( s_serveroptions.gametype == GT_TEAM ) {
-			Q_strncpyz( s_serveroptions.playerNameBuffers[3], "visor", 16 );
+			Q_strncpyz( s_serveroptions.playerNameBuffers[3], STANDARD_BOT, 16 );
 		}
 		else {
 			s_serveroptions.playerType[3].curvalue = 2;
@@ -1048,11 +1141,11 @@ static void ServerOptions_InitBotNames( void ) {
 		s_serveroptions.playerType[4].curvalue = 2;
 		s_serveroptions.playerType[5].curvalue = 2;
 
-		Q_strncpyz( s_serveroptions.playerNameBuffers[6], "sarge", 16 );
-		Q_strncpyz( s_serveroptions.playerNameBuffers[7], "grunt", 16 );
-		Q_strncpyz( s_serveroptions.playerNameBuffers[8], "major", 16 );
+		Q_strncpyz( s_serveroptions.playerNameBuffers[6], STANDARD_BOT, 16 );
+		Q_strncpyz( s_serveroptions.playerNameBuffers[7], STANDARD_BOT, 16 );
+		Q_strncpyz( s_serveroptions.playerNameBuffers[8], STANDARD_BOT, 16 );
 		if( s_serveroptions.gametype == GT_TEAM ) {
-			Q_strncpyz( s_serveroptions.playerNameBuffers[9], "visor", 16 );
+			Q_strncpyz( s_serveroptions.playerNameBuffers[9], STANDARD_BOT, 16 );
 		}
 		else {
 			s_serveroptions.playerType[9].curvalue = 2;
@@ -1081,7 +1174,7 @@ static void ServerOptions_InitBotNames( void ) {
 		}
 
 		// mark start of bot name
-		bot = p;
+		bot = STANDARD_BOT;
 
 		// skip until space of null
 		while( *p && *p != ' ' ) {
@@ -1150,6 +1243,12 @@ static void ServerOptions_SetMenuItems( void ) {
 		break;
 
 	case GT_CTF:
+		Com_sprintf( s_serveroptions.flaglimit.field.buffer, 4, "%i", (int)Com_Clamp( 0, 100, trap_Cvar_VariableValue( "ui_ctf_capturelimit" ) ) );
+		Com_sprintf( s_serveroptions.timelimit.field.buffer, 4, "%i", (int)Com_Clamp( 0, 999, trap_Cvar_VariableValue( "ui_ctf_timelimit" ) ) );
+		s_serveroptions.friendlyfire.curvalue = (int)Com_Clamp( 0, 1, trap_Cvar_VariableValue( "ui_ctf_friendly" ) );
+		break;
+
+	case GT_1FCTF:
 		Com_sprintf( s_serveroptions.flaglimit.field.buffer, 4, "%i", (int)Com_Clamp( 0, 100, trap_Cvar_VariableValue( "ui_ctf_capturelimit" ) ) );
 		Com_sprintf( s_serveroptions.timelimit.field.buffer, 4, "%i", (int)Com_Clamp( 0, 999, trap_Cvar_VariableValue( "ui_ctf_timelimit" ) ) );
 		s_serveroptions.friendlyfire.curvalue = (int)Com_Clamp( 0, 1, trap_Cvar_VariableValue( "ui_ctf_friendly" ) );
@@ -1273,7 +1372,7 @@ static void ServerOptions_MenuInit( qboolean multiplayer ) {
 	s_serveroptions.picframe.focuspic			= GAMESERVER_SELECT;
 
 	y = 272;
-	if( s_serveroptions.gametype != GT_CTF ) {
+	if( s_serveroptions.gametype < GT_CTF ) {
 		s_serveroptions.fraglimit.generic.type       = MTYPE_FIELD;
 		s_serveroptions.fraglimit.generic.name       = "Frag Limit:";
 		s_serveroptions.fraglimit.generic.flags      = QMF_NUMBERSONLY|QMF_PULSEIFFOCUS|QMF_SMALLFONT;
@@ -1397,7 +1496,13 @@ static void ServerOptions_MenuInit( qboolean multiplayer ) {
 		s_serveroptions.playerTeam[n].generic.flags		= QMF_SMALLFONT;
 		s_serveroptions.playerTeam[n].generic.x			= 240;
 		s_serveroptions.playerTeam[n].generic.y			= y;
-		s_serveroptions.playerTeam[n].itemnames			= playerTeam_list;
+		if (s_serveroptions.gametype >= GT_MULTI_TEAM) {
+			Com_Printf("Yes\n");
+			s_serveroptions.playerTeam[n].itemnames			= playerMultiTeam_list;
+		} else {
+			Com_Printf("No\n");
+			s_serveroptions.playerTeam[n].itemnames			= playerTeam_list;
+		}
 
 		y += ( SMALLCHAR_HEIGHT + 4 );
 	}
@@ -1453,10 +1558,9 @@ static void ServerOptions_MenuInit( qboolean multiplayer ) {
 		}
 	}
 
-	if( s_serveroptions.gametype != GT_CTF ) {
+	if( s_serveroptions.gametype < GT_CTF ) {
 		Menu_AddItem( &s_serveroptions.menu, &s_serveroptions.fraglimit );
-	}
-	else {
+	} else {
 		Menu_AddItem( &s_serveroptions.menu, &s_serveroptions.flaglimit );
 	}
 	Menu_AddItem( &s_serveroptions.menu, &s_serveroptions.timelimit );

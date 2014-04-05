@@ -51,11 +51,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // Heartbeat for dpmaster protocol. You shouldn't change this unless you know what you're doing
 #define HEARTBEAT_FOR_MASTER		"DarkPlaces"
 
-// When com_gamename is LEGACY_MASTER_GAMENAME, use quake3 master protocol.
-// You shouldn't change this unless you know what you're doing
-#define LEGACY_MASTER_GAMENAME		"Quake3Arena"
-#define LEGACY_HEARTBEAT_FOR_MASTER	"QuakeArena-1"
-
 #define BASETA				"missionpack"
 
 #ifndef PRODUCT_VERSION
@@ -382,6 +377,7 @@ extern	vec3_t	bytedirs[NUMVERTEXNORMALS];
 
 extern	vec4_t		colorBlack;
 extern	vec4_t		colorRed;
+extern	vec4_t		colorOrange;
 extern	vec4_t		colorGreen;
 extern	vec4_t		colorBlue;
 extern	vec4_t		colorYellow;
@@ -562,7 +558,7 @@ typedef struct {
 #define Byte4Copy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 
 #define	SnapVector(v) {v[0]=((int)(v[0]));v[1]=((int)(v[1]));v[2]=((int)(v[2]));}
-// just in case you don't want to use the macros
+// just in case you do't want to use the macros
 vec_t _DotProduct( const vec3_t v1, const vec3_t v2 );
 void _VectorSubtract( const vec3_t veca, const vec3_t vecb, vec3_t out );
 void _VectorAdd( const vec3_t veca, const vec3_t vecb, vec3_t out );
@@ -757,7 +753,7 @@ typedef struct pc_token_s
 
 void	COM_MatchToken( char**buf_p, char *match );
 
-qboolean SkipBracedSection (char **program, int depth);
+void SkipBracedSection (char **program);
 void SkipRestOfLine ( char **data );
 
 void Parse1DMatrix (char **buf_p, int x, float *m);
@@ -855,7 +851,7 @@ void Com_TruncateLongString( char *buffer, const char *s );
 //
 char *Info_ValueForKey( const char *s, const char *key );
 void Info_RemoveKey( char *s, const char *key );
-void Info_RemoveKey_Big( char *s, const char *key );
+void Info_RemoveKey_big( char *s, const char *key );
 void Info_SetValueForKey( char *s, const char *key, const char *value );
 void Info_SetValueForKey_Big( char *s, const char *key, const char *value );
 qboolean Info_Validate( const char *s );
@@ -1012,7 +1008,7 @@ typedef struct {
 // or ENTITYNUM_NONE, ENTITYNUM_WORLD
 
 
-// markfragments are returned by R_MarkFragments()
+// markfragments are returned by CM_MarkFragments()
 typedef struct {
 	int		firstPoint;
 	int		numPoints;
@@ -1148,7 +1144,7 @@ typedef struct playerState_s {
 	int			torsoTimer;		// don't change low priority animations until this runs out
 	int			torsoAnim;		// mask off ANIM_TOGGLEBIT
 
-	int			movementDir;	// a number 0 to 7 that represents the relative angle
+	int			movementDir;	// a number 0 to 7 that represents the reletive angle
 								// of movement to the view angle (axial and diagonals)
 								// when at rest, the value will remain unchanged
 								// used to twist the legs during strafing
@@ -1189,7 +1185,7 @@ typedef struct playerState_s {
 
 	// not communicated over the net at all
 	int			ping;			// server to game info for scoreboard
-	int			pmove_framecount;
+	int			pmove_framecount;	// FIXME: don't transmit over the network
 	int			jumppad_frame;
 	int			entityEventSequence;
 } playerState_t;
@@ -1220,6 +1216,7 @@ typedef struct playerState_s {
 #define BUTTON_FOLLOWME		1024
 
 #define	BUTTON_ANY			2048			// any key whatsoever
+#define BUTTON_MELEE		4096		// Perform a melee move
 
 #define	MOVE_RUN			120			// if forwardmove or rightmove are >= MOVE_RUN,
 										// then BUTTON_WALKING should be set
@@ -1282,7 +1279,7 @@ typedef struct entityState_s {
 	int		otherEntityNum;	// shotgun sources, etc
 	int		otherEntityNum2;
 
-	int		groundEntityNum;	// ENTITYNUM_NONE = in air
+	int		groundEntityNum;	// -1 = in air
 
 	int		constantLight;	// r + (g<<8) + (b<<16) + (intensity<<24)
 	int		loopSound;		// constantly loop this sound

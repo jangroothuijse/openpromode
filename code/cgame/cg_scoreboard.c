@@ -157,7 +157,7 @@ static void CG_DrawClientScore( int y, score_t *score, float *color, float fade,
 		CG_DrawHead( headx, y, 16, 16, score->client, headAngles );
 	}
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	// draw the team task
 	if ( ci->teamTask != TEAMTASK_NONE ) {
 		if ( ci->teamTask == TEAMTASK_OFFENSE ) {

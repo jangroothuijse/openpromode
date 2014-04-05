@@ -118,6 +118,7 @@ struct gentity_s {
 
 	int			timestamp;		// body queue sinking, etc
 
+	float		angle;			// set in editor, -1 = up, -2 = down
 	char		*target;
 	char		*targetname;
 	char		*team;
@@ -159,7 +160,7 @@ struct gentity_s {
 	gentity_t	*teamchain;		// next entity in team
 	gentity_t	*teammaster;	// master of the team
 
-#ifdef MISSIONPACK
+#if 1
 	int			kamikazeTime;
 	int			kamikazeShockTime;
 #endif
@@ -174,8 +175,11 @@ struct gentity_s {
 	float		random;
 
 	gitem_t		*item;			// for bonus items
-};
 
+	int			j_status;
+
+	qboolean	frozen;
+};
 
 typedef enum {
 	CON_DISCONNECTED,
@@ -212,6 +216,11 @@ typedef struct {
 	float		flagsince;
 	float		lastfraggedcarrier;
 } playerTeamState_t;
+
+// the auto following clients don't follow a specific client
+// number, but instead follow the first two active players
+#define	FOLLOW_ACTIVE1	-1
+#define	FOLLOW_ACTIVE2	-2
 
 // client data that stays across multiple levels or tournament restarts
 // this is achieved by writing all the data to cvar strings at game shutdown
@@ -271,6 +280,7 @@ struct gclient_s {
 	int			latched_buttons;
 
 	vec3_t		oldOrigin;
+	vec3_t		oldVelocity;
 
 	// sum up damage over an entire frame, so
 	// shotgun blasts give a single big kick
@@ -309,7 +319,7 @@ struct gclient_s {
 	// like health / armor countdowns and regeneration
 	int			timeResidual;
 
-#ifdef MISSIONPACK
+#if 1
 	gentity_t	*persistantPowerup;
 	int			portalID;
 	int			ammoTimes[WP_NUM_WEAPONS];
@@ -404,9 +414,13 @@ typedef struct {
 	gentity_t	*locationHead;			// head of the location list
 	int			bodyQueIndex;			// dead bodies
 	gentity_t	*bodyQue[BODY_QUEUE_SIZE];
-#ifdef MISSIONPACK
+#if 1
 	int			portalSequence;
 #endif
+	int roundNumber;					//The round number we have reached
+
+
+
 } level_locals_t;
 
 
@@ -473,6 +487,7 @@ void	G_FreeEntity( gentity_t *e );
 qboolean	G_EntitiesFree( void );
 
 void	G_TouchTriggers (gentity_t *ent);
+void	G_TouchSolids (gentity_t *ent);
 
 float	*tv (float x, float y, float z);
 char	*vtos( const vec3_t v );
@@ -494,7 +509,7 @@ qboolean G_RadiusDamage (vec3_t origin, gentity_t *attacker, float damage, float
 int G_InvulnerabilityEffect( gentity_t *targ, vec3_t dir, vec3_t point, vec3_t impactpoint, vec3_t bouncedir );
 void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath );
 void TossClientItems( gentity_t *self );
-#ifdef MISSIONPACK
+#if 1
 void TossClientPersistantPowerups( gentity_t *self );
 #endif
 void TossClientCubes( gentity_t *self );
@@ -504,7 +519,7 @@ void TossClientCubes( gentity_t *self );
 #define DAMAGE_NO_ARMOR				0x00000002	// armour does not protect from this damage
 #define DAMAGE_NO_KNOCKBACK			0x00000004	// do not affect velocity, just view angles
 #define DAMAGE_NO_PROTECTION		0x00000008  // armor, shields, invulnerability, and godmode have no effect
-#ifdef MISSIONPACK
+#if 1
 #define DAMAGE_NO_TEAM_PROTECTION	0x00000010  // armor, shields, invulnerability, and godmode have no effect
 #endif
 
@@ -518,11 +533,11 @@ gentity_t *fire_grenade (gentity_t *self, vec3_t start, vec3_t aimdir);
 gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir);
 gentity_t *fire_bfg (gentity_t *self, vec3_t start, vec3_t dir);
 gentity_t *fire_grapple (gentity_t *self, vec3_t start, vec3_t dir);
-#ifdef MISSIONPACK
+#if 1
 gentity_t *fire_nail( gentity_t *self, vec3_t start, vec3_t forward, vec3_t right, vec3_t up );
 gentity_t *fire_prox( gentity_t *self, vec3_t start, vec3_t aimdir );
 #endif
-
+void TeleportMissle( gentity_t *missle, vec3_t origin, vec3_t angles, vec3_t entrance );
 
 //
 // g_mover.c
@@ -540,7 +555,7 @@ void trigger_teleporter_touch (gentity_t *self, gentity_t *other, trace_t *trace
 // g_misc.c
 //
 void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles );
-#ifdef MISSIONPACK
+#if 1
 void DropPortalSource( gentity_t *ent );
 void DropPortalDestination( gentity_t *ent );
 #endif
@@ -560,7 +575,7 @@ void Weapon_HookThink (gentity_t *ent);
 //
 // g_client.c
 //
-int TeamCount( int ignoreClientNum, team_t team );
+team_t TeamCount( int ignoreClientNum, int team );
 int TeamLeader( int team );
 team_t PickTeam( int ignoreClientNum );
 void SetClientViewAngle( gentity_t *ent, vec3_t angle );
@@ -568,6 +583,8 @@ gentity_t *SelectSpawnPoint (vec3_t avoidPoint, vec3_t origin, vec3_t angles, qb
 void CopyToBodyQue( gentity_t *ent );
 void ClientRespawn(gentity_t *ent);
 void BeginIntermission (void);
+void InitClientPersistant (gclient_t *client);
+void InitClientResp (gclient_t *client);
 void InitBodyQue (void);
 void ClientSpawn( gentity_t *ent );
 void player_die (gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod);
@@ -586,19 +603,30 @@ qboolean G_FilterPacket (char *from);
 // g_weapon.c
 //
 void FireWeapon( gentity_t *ent );
-#ifdef MISSIONPACK
+#if 1
 void G_StartKamikaze( gentity_t *ent );
 #endif
 
 //
+// p_hud.c
+//
+void MoveClientToIntermission (gentity_t *client);
+void G_SetStats (gentity_t *ent);
+void DeathmatchScoreboardMessage (gentity_t *client);
+
+//
 // g_cmds.c
 //
-void DeathmatchScoreboardMessage( gentity_t *ent );
+
+//
+// g_pweapon.c
+//
+
+
 
 //
 // g_main.c
 //
-void MoveClientToIntermission( gentity_t *ent );
 void FindIntermissionPoint( void );
 void SetLeader(int team, int client);
 void CheckTeamLeader( int team );
@@ -746,8 +774,8 @@ extern	vmCvar_t	g_enableBreath;
 extern	vmCvar_t	g_singlePlayer;
 extern	vmCvar_t	g_proxMineTimeout;
 
-void	trap_Print( const char *text );
-void	trap_Error( const char *text ) __attribute__((noreturn));
+void	trap_Printf( const char *fmt );
+void trap_Error(const char *fmt) __attribute__((noreturn));
 int		trap_Milliseconds( void );
 int	trap_RealTime( qtime_t *qtime );
 int		trap_Argc( void );
@@ -951,3 +979,5 @@ int		trap_GeneticParentsAndChildSelection(int numranks, float *ranks, int *paren
 
 void	trap_SnapVector( float *v );
 
+void 	MeleeAttack( gentity_t *ent );
+void 	SlideMeleeAttack( gentity_t *ent );

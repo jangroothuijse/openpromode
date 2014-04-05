@@ -25,14 +25,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "cg_local.h"
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 #include "../ui/ui_shared.h"
 
 // used for scoreboard
 extern displayContextDef_t cgDC;
 menuDef_t *menuScoreboard = NULL;
-#else
-int drawTeamOverlayModificationCount = -1;
+//#else
+
 #endif
 
 int sortedTeamPlayers[TEAM_MAXOVERLAY];
@@ -42,7 +42,7 @@ char systemChat[256];
 char teamChat1[256];
 char teamChat2[256];
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 
 int CG_Text_Width(const char *text, float scale, int limit) {
   int count,len;
@@ -507,6 +507,22 @@ void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team )
 		hcolor[0] = 0;
 		hcolor[1] = 0;
 		hcolor[2] = 1;
+	} else if ( team == TEAM_GREEN ) {
+		hcolor[0] = 0;
+		hcolor[1] = 1;
+		hcolor[2] = 0;
+	} else if ( team == TEAM_YELLOW ) {
+		hcolor[0] = 1;
+		hcolor[1] = 1;
+		hcolor[2] = 0;
+	} else if ( team == TEAM_ORANGE ) {
+		hcolor[0] = 1;
+		hcolor[1] = 0.5;
+		hcolor[2] = 0;
+	} else if ( team == TEAM_WHITE ) {
+		hcolor[0] = 1;
+		hcolor[1] = 1;
+		hcolor[2] = 1;
 	} else {
 		return;
 	}
@@ -571,12 +587,21 @@ static void CG_DrawStatusBar( void ) {
 	}
 
 	if ( ps->stats[ STAT_ARMOR ] ) {
+		qhandle_t model = cgs.media.armorModel; // CPM
+		// CPM: Fix GA shader
+		if (ps->stats[ STAT_ARMORTYPE ] == 2)
+			model = cgs.media.armorModelRA;
+		// CPM: Fix RA shader
+		else if (ps->stats[ STAT_ARMORTYPE ] == 0)
+			model = cgs.media.armorModelGA;
+
+
 		origin[0] = 90;
 		origin[1] = 0;
 		origin[2] = -10;
 		angles[YAW] = ( cg.time & 2047 ) * 360 / 2048.0;
 		CG_Draw3DModel( 370 + CHAR_WIDTH*3 + TEXT_ICON_SPACE, 432, ICON_SIZE, ICON_SIZE,
-					   cgs.media.armorModel, 0, origin, angles );
+			model, 0, origin, angles );
 	}
 	//
 	// ammo
@@ -638,12 +663,20 @@ static void CG_DrawStatusBar( void ) {
 	//
 	value = ps->stats[STAT_ARMOR];
 	if (value > 0 ) {
+		// CPM: Armor icon
+				qhandle_t icon = cgs.media.armorIcon;
+
+		if (ps->stats[STAT_ARMORTYPE] == 2)
+			icon = cgs.media.armorIconRA;
+		else if (ps->stats[STAT_ARMORTYPE] == 0)
+			icon = cgs.media.armorIconGA;
+		// !CPM
 		trap_R_SetColor( colors[0] );
 		CG_DrawField (370, 432, 3, value);
 		trap_R_SetColor( NULL );
 		// if we didn't draw a 3D icon, draw a 2D icon for armor
 		if ( !cg_draw3dIcons.integer && cg_drawIcons.integer ) {
-			CG_DrawPic( 370 + CHAR_WIDTH*3 + TEXT_ICON_SPACE, 432, ICON_SIZE, ICON_SIZE, cgs.media.armorIcon );
+			CG_DrawPic( 370 + CHAR_WIDTH*3 + TEXT_ICON_SPACE, 432, ICON_SIZE, ICON_SIZE, icon );
 		}
 
 	}
@@ -818,7 +851,7 @@ static float CG_DrawTeamOverlay( float y, qboolean right, qboolean upper ) {
 		return y;
 	}
 
-	if ( cg.snap->ps.persistant[PERS_TEAM] != TEAM_RED && cg.snap->ps.persistant[PERS_TEAM] != TEAM_BLUE ) {
+	if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_FREE || cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ) {
 		return y; // Not on any team
 	}
 
@@ -878,12 +911,33 @@ static float CG_DrawTeamOverlay( float y, qboolean right, qboolean upper ) {
 		hcolor[1] = 0.0f;
 		hcolor[2] = 0.0f;
 		hcolor[3] = 0.33f;
-	} else { // if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_BLUE )
+	} else if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_BLUE ) {
 		hcolor[0] = 0.0f;
 		hcolor[1] = 0.0f;
 		hcolor[2] = 1.0f;
 		hcolor[3] = 0.33f;
+	} else if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_GREEN ) {
+		hcolor[0] = 0.0f;
+		hcolor[1] = 1.0f;
+		hcolor[2] = 0.0f;
+		hcolor[3] = 0.33f;
+	} else if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_YELLOW ) {
+		hcolor[0] = 1.0f;
+		hcolor[1] = 1.0f;
+		hcolor[2] = 0.0f;
+		hcolor[3] = 0.33f;
+	} else if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_ORANGE ) {
+		hcolor[0] = 1.0f;
+		hcolor[1] = 0.5f;
+		hcolor[2] = 0.0f;
+		hcolor[3] = 0.33f;
+	} else { // if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_WHITE )
+		hcolor[0] = 1.0f;
+		hcolor[1] = 1.0f;
+		hcolor[2] = 1.0f;
+		hcolor[3] = 0.33f;
 	}
+
 	trap_R_SetColor( hcolor );
 	CG_DrawPic( x, y, w, h, cgs.media.teamStatusBar );
 	trap_R_SetColor( NULL );
@@ -1018,7 +1072,7 @@ Draw the small two score display
 #ifndef MISSIONPACK
 static float CG_DrawScores( float y ) {
 	const char	*s;
-	int			s1, s2, score;
+	int			s1, s2, s3, s4, s5, s6, score;
 	int			x, w;
 	int			v;
 	vec4_t		color;
@@ -1027,6 +1081,10 @@ static float CG_DrawScores( float y ) {
 
 	s1 = cgs.scores1;
 	s2 = cgs.scores2;
+	s3 = cgs.scores3;
+	s4 = cgs.scores4;
+	s5 = cgs.scores5;
+	s6 = cgs.scores6;
 
 	y -=  BIGCHAR_HEIGHT + 8;
 
@@ -1084,7 +1142,65 @@ static float CG_DrawScores( float y ) {
 			}
 		}
 
-		if ( cgs.gametype >= GT_CTF ) {
+		if (cgs.gametype >= GT_MULTI_TEAM) {
+			color[0] = 0.0f;
+			color[1] = 1.0f;
+			color[2] = 0.0f;
+			color[3] = 0.33f;
+			s = va( "%2i", s3 );
+			w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH + 8;
+			x -= w;
+			CG_FillRect( x, y-4,  w, BIGCHAR_HEIGHT+8, color );
+			if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_GREEN ) {
+				CG_DrawPic( x, y-4, w, BIGCHAR_HEIGHT+8, cgs.media.selectShader );
+			}
+			CG_DrawBigString( x + 4, y, s, 1.0F);
+
+
+			color[0] = 1.0f;
+			color[1] = 1.0f;
+			color[2] = 0.0f;
+			color[3] = 0.33f;
+			s = va( "%2i", s4 );
+			w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH + 8;
+			x -= w;
+			CG_FillRect( x, y-4,  w, BIGCHAR_HEIGHT+8, color );
+			if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_YELLOW ) {
+				CG_DrawPic( x, y-4, w, BIGCHAR_HEIGHT+8, cgs.media.selectShader );
+			}
+			CG_DrawBigString( x + 4, y, s, 1.0F);
+
+
+			color[0] = 1.0f;
+			color[1] = 0.5f;
+			color[2] = 0.0f;
+			color[3] = 0.33f;
+			s = va( "%2i", s5 );
+			w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH + 8;
+			x -= w;
+			CG_FillRect( x, y-4,  w, BIGCHAR_HEIGHT+8, color );
+			if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_ORANGE ) {
+				CG_DrawPic( x, y-4, w, BIGCHAR_HEIGHT+8, cgs.media.selectShader );
+			}
+			CG_DrawBigString( x + 4, y, s, 1.0F);
+
+
+
+			color[0] = 1.0f;
+			color[1] = 1.0f;
+			color[2] = 1.0f;
+			color[3] = 0.33f;
+			s = va( "%2i", s6 );
+			w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH + 8;
+			x -= w;
+			CG_FillRect( x, y-4,  w, BIGCHAR_HEIGHT+8, color );
+			if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_WHITE ) {
+				CG_DrawPic( x, y-4, w, BIGCHAR_HEIGHT+8, cgs.media.selectShader );
+			}
+			CG_DrawBigString( x + 4, y, s, 1.0F);
+		}
+
+		if ( cgs.gametype >= GT_CTF && cgs.gametype < GT_MULTI_TEAM ) {
 			v = cgs.capturelimit;
 		} else {
 			v = cgs.fraglimit;
@@ -1422,7 +1538,7 @@ static void CG_DrawHoldableItem( void ) {
 }
 #endif // MISSIONPACK
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ===================
 CG_DrawPersistantPowerup
@@ -1637,7 +1753,7 @@ static void CG_DrawLagometer( void ) {
 	//
 	// draw the graph
 	//
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	x = 640 - 48;
 	y = 480 - 144;
 #else
@@ -1777,7 +1893,7 @@ static void CG_DrawCenterString( void ) {
 	char	*start;
 	int		l;
 	int		x, y, w;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	int h;
 #endif
 	float	*color;
@@ -1808,7 +1924,7 @@ static void CG_DrawCenterString( void ) {
 		}
 		linebuffer[l] = 0;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		w = CG_Text_Width(linebuffer, 0.5, 0);
 		h = CG_Text_Height(linebuffer, 0.5, 0);
 		x = (SCREEN_WIDTH - w) / 2;
@@ -2051,7 +2167,7 @@ static void CG_DrawCrosshairNames( void ) {
 	}
 
 	name = cgs.clientinfo[ cg.crosshairClientNum ].name;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	color[3] *= 0.5f;
 	w = CG_Text_Width(name, 0.3f, 0);
 	CG_Text_Paint( 320 - w / 2, 190, 0.3f, color, name, 0, 0, ITEM_TEXTSTYLE_SHADOWED);
@@ -2103,7 +2219,7 @@ static void CG_DrawVote(void) {
 	if ( sec < 0 ) {
 		sec = 0;
 	}
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	s = va("VOTE(%i):%s yes:%i no:%i", sec, cgs.voteString, cgs.voteYes, cgs.voteNo);
 	CG_DrawSmallString( 0, 58, s, 1.0F );
 	s = "or press ESC then click Vote";
@@ -2151,7 +2267,7 @@ static void CG_DrawTeamVote(void) {
 
 
 static qboolean CG_DrawScoreboard( void ) {
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	static qboolean firstTime = qtrue;
 
 	if (menuScoreboard) {
@@ -2220,7 +2336,7 @@ CG_DrawIntermission
 */
 static void CG_DrawIntermission( void ) {
 //	int key;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	//if (cg_singlePlayer.integer) {
 	//	CG_DrawCenterString();
 	//	return;
@@ -2294,7 +2410,7 @@ static void CG_DrawAmmoWarning( void ) {
 }
 
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 =================
 CG_DrawProxWarning
@@ -2344,7 +2460,7 @@ static void CG_DrawWarmup( void ) {
 	int			w;
 	int			sec;
 	int			i;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	float		scale;
 #else
 	int			cw;
@@ -2381,7 +2497,7 @@ static void CG_DrawWarmup( void ) {
 
 		if ( ci1 && ci2 ) {
 			s = va( "%s vs %s", ci1->name, ci2->name );
-#ifdef MISSIONPACK
+#if MISSIONPACK
 			w = CG_Text_Width(s, 0.6f, 0);
 			CG_Text_Paint(320 - w / 2, 60, 0.6f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE);
 #else
@@ -2402,18 +2518,18 @@ static void CG_DrawWarmup( void ) {
 			s = "Team Deathmatch";
 		} else if ( cgs.gametype == GT_CTF ) {
 			s = "Capture the Flag";
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 		} else if ( cgs.gametype == GT_1FCTF ) {
 			s = "One Flag CTF";
 		} else if ( cgs.gametype == GT_OBELISK ) {
 			s = "Overload";
 		} else if ( cgs.gametype == GT_HARVESTER ) {
 			s = "Harvester";
-#endif
+//#endif
 		} else {
 			s = "";
 		}
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		w = CG_Text_Width(s, 0.6f, 0);
 		CG_Text_Paint(320 - w / 2, 90, 0.6f, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE);
 #else
@@ -2451,7 +2567,7 @@ static void CG_DrawWarmup( void ) {
 		}
 	}
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	switch ( cg.warmupCount ) {
 	case 0:
 		scale = 0.54f;
@@ -2492,7 +2608,7 @@ static void CG_DrawWarmup( void ) {
 }
 
 //==================================================================================
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /* 
 =================
 CG_DrawTimedMenus
@@ -2516,7 +2632,7 @@ CG_Draw2D
 */
 static void CG_Draw2D(stereoFrame_t stereoFrame)
 {
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if (cgs.orderPending && cg.time > cgs.orderTime) {
 		CG_CheckOrderPending();
 	}
@@ -2551,7 +2667,7 @@ static void CG_Draw2D(stereoFrame_t stereoFrame)
 		// don't draw any status if dead or the scoreboard is being explicitly shown
 		if ( !cg.showScores && cg.snap->ps.stats[STAT_HEALTH] > 0 ) {
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 			if ( cg_drawStatus.integer ) {
 				Menu_PaintAll();
 				CG_DrawTimedMenus();
@@ -2562,7 +2678,7 @@ static void CG_Draw2D(stereoFrame_t stereoFrame)
       
 			CG_DrawAmmoWarning();
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 			CG_DrawProxWarning();
 #endif      
 			if(stereoFrame == STEREO_CENTER)
@@ -2590,7 +2706,7 @@ static void CG_Draw2D(stereoFrame_t stereoFrame)
 
 	CG_DrawLagometer();
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if (!cg_paused.integer) {
 		CG_DrawUpperRight(stereoFrame);
 	}
@@ -2616,7 +2732,7 @@ static void CG_Draw2D(stereoFrame_t stereoFrame)
 
 
 static void CG_DrawTourneyScoreboard( void ) {
-#ifdef MISSIONPACK
+#if MISSIONPACK
 #else
 	CG_DrawOldTourneyScoreboard();
 #endif

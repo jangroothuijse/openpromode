@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 //
 #include "g_local.h"
+#include "bg_local.h"
 
 
 void InitTrigger( gentity_t *self ) {
@@ -270,8 +271,20 @@ trigger_teleport
 
 void trigger_teleporter_touch (gentity_t *self, gentity_t *other, trace_t *trace ) {
 	gentity_t	*dest;
+	vec3_t origin;
+	float 	height;
 
 	if ( !other->client ) {
+		//Com_Printf("Triggered by non client");
+		// TODO change this to TeleportMissle();
+		if (other->s.eType == ET_MISSILE) {
+			dest = 	G_PickTarget( self->target );
+			if (!dest) {
+				G_Printf ("Couldn't find teleporter destination\n");
+				return;
+			}
+			TeleportMissle(other, dest->s.origin, dest->s.angles, self->s.origin);
+		}
 		return;
 	}
 	if ( other->client->ps.pm_type == PM_DEAD ) {
@@ -289,8 +302,41 @@ void trigger_teleporter_touch (gentity_t *self, gentity_t *other, trace_t *trace
 		G_Printf ("Couldn't find teleporter destination\n");
 		return;
 	}
+	height = other->client->ps.origin[2] - self->pos1[2];
+	if (height > 5) {
+		// gravity = self->client->ps.gravity
+		// decrease in height should be compensated by increase in z velocity
+		// to find out by how much, we need to calculate how long it will take us
+		// to land:  t | gravity * t^2 + velocity[2] * t + height = 0
+		float t; // time in milliseconds
+		float bsqminus4ac; // b^2 - 4ac
+		float compensation;
+		float g = -(float)pm->ps->gravity;
+		bsqminus4ac =  (pm->ps->velocity[2]*pm->ps->velocity[2])
+		               - (4 * g * height);
+		if (bsqminus4ac >= 0 && g != 0) {
+			t = (-pm->ps->velocity[2] - sqrt(bsqminus4ac)) / (2 * g);
+			// now we know t (which should remain constant)
+			// we can calculate how much more velocity we need, to make up
+			// for the height loss:
+			// original vel * t + original height = new vel * t + new height
+			// so new vel = original vel + (original height - new height) / t
+			if (t != 0) {
+				compensation = (height - 5) / t;
+				// t could never be 0, we would be standing on the ground already..
+				pm->ps->velocity[2] += compensation < 150 ? compensation : 150;
+				// Max add 150, some teleporters have their entrance coordinates wrong
+			}
+		}
+		height = 5;
+	}
+	else { if (height < 1) { height = 1; } }
 
-	TeleportPlayer( other, dest->s.origin, dest->s.angles );
+	origin[0] = dest->s.origin[0];
+	origin[1] = dest->s.origin[1];
+	origin[2] = dest->s.origin[2] + height;
+
+	TeleportPlayer(other, origin, dest->s.angles);
 }
 
 

@@ -173,7 +173,7 @@ static void CG_ShotgunEjectBrass( centity_t *cent ) {
 }
 
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ==========================
 CG_NailgunEjectBrass
@@ -345,7 +345,7 @@ static void CG_RocketTrail( centity_t *ent, const weaponInfo_t *wi ) {
 	up[1] = 0;
 	up[2] = 0;
 
-	step = 50;
+	step = 10;
 
 	es = &ent->currentState;
 	startTime = ent->trailTime;
@@ -377,7 +377,7 @@ static void CG_RocketTrail( centity_t *ent, const weaponInfo_t *wi ) {
 
 		smoke = CG_SmokePuff( lastPos, up, 
 					  wi->trailRadius, 
-					  1, 1, 1, 0.33f,
+					  1.5, 1.5, 1.5, 0.2f,
 					  wi->wiTrailTime, 
 					  t,
 					  0,
@@ -389,7 +389,7 @@ static void CG_RocketTrail( centity_t *ent, const weaponInfo_t *wi ) {
 
 }
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ==========================
 CG_NailTrail
@@ -460,7 +460,7 @@ static void CG_NailTrail( centity_t *ent, const weaponInfo_t *wi ) {
 
 /*
 ==========================
-CG_PlasmaTrail
+CG_NailTrail
 ==========================
 */
 static void CG_PlasmaTrail( centity_t *cent, const weaponInfo_t *wi ) {
@@ -536,7 +536,7 @@ static void CG_PlasmaTrail( centity_t *cent, const weaponInfo_t *wi ) {
 	le->color[0] = wi->flashDlightColor[0] * 0.2;
 	le->color[1] = wi->flashDlightColor[1] * 0.2;
 	le->color[2] = wi->flashDlightColor[2] * 0.2;
-	le->color[3] = 0.25f;
+	le->color[3] = 0.005f;
 
 	le->angles.trType = TR_LINEAR;
 	le->angles.trTime = cg.time;
@@ -706,7 +706,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 		cgs.media.lightningShader = trap_R_RegisterShader( "lightningBoltNew");
 		break;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_CHAINGUN:
 		weaponInfo->firingSound = trap_S_RegisterSound( "sound/weapons/vulcan/wvulfire.wav", qfalse );
 		MAKERGB( weaponInfo->flashDlightColor, 1, 1, 0 );
@@ -750,7 +750,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 		cgs.media.rocketExplosionShader = trap_R_RegisterShader( "rocketExplosion" );
 		break;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_PROX_LAUNCHER:
 		weaponInfo->missileModel = trap_R_RegisterModel( "models/weaphits/proxmine.md3" );
 		weaponInfo->missileTrailFunc = CG_GrenadeTrail;
@@ -772,7 +772,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 		cgs.media.grenadeExplosionShader = trap_R_RegisterShader( "grenadeExplosion" );
 		break;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_NAILGUN:
 		weaponInfo->ejectBrassFunc = CG_NailgunEjectBrass;
 		weaponInfo->missileTrailFunc = CG_NailTrail;
@@ -802,6 +802,10 @@ void CG_RegisterWeapon( int weaponNum ) {
 		cgs.media.railExplosionShader = trap_R_RegisterShader( "railExplosion" );
 		cgs.media.railRingsShader = trap_R_RegisterShader( "railDisc" );
 		cgs.media.railCoreShader = trap_R_RegisterShader( "railCore" );
+		if (1) {
+			CG_RegisterWeapon(WP_BFG);
+			// what happens if it is called twice?
+		}
 		break;
 
 	case WP_BFG:
@@ -842,7 +846,7 @@ void CG_RegisterItemVisuals( int itemNum ) {
 
 	item = &bg_itemlist[ itemNum ];
 
-	memset( itemInfo, 0, sizeof( *itemInfo ) );
+	memset( itemInfo, 0, sizeof( &itemInfo ) );
 	itemInfo->registered = qtrue;
 
 	itemInfo->models[0] = trap_R_RegisterModel( item->world_model[0] );
@@ -1153,7 +1157,7 @@ static float	CG_MachinegunSpinAngle( centity_t *cent ) {
 		cent->pe.barrelTime = cg.time;
 		cent->pe.barrelAngle = AngleMod( angle );
 		cent->pe.barrelSpinning = !!(cent->currentState.eFlags & EF_FIRING);
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		if ( cent->currentState.weapon == WP_CHAINGUN && !cent->pe.barrelSpinning ) {
 			trap_S_StartSound( NULL, cent->currentState.number, CHAN_WEAPON, trap_S_RegisterSound( "sound/weapons/vulcan/wvulwind.wav", qfalse ) );
 		}
@@ -1733,6 +1737,17 @@ void CG_FireWeapon( centity_t *cent ) {
 	}
 }
 
+void CG_Melee( centity_t *cent ) {
+
+	//CG_MissileHitWall( WP_MACHINEGUN, 0, cent.beamEnd, normal, IMPACTSOUND_DEFAULT );
+	// TODO
+}
+
+
+void CG_SlideMelee( centity_t *cent ) {
+	// TODO
+}
+
 
 /*
 =================
@@ -1773,7 +1788,7 @@ void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, im
 
 	switch ( weapon ) {
 	default:
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_NAILGUN:
 		if( soundType == IMPACTSOUND_FLESH ) {
 			sfx = cgs.media.sfx_nghitflesh;
@@ -1799,7 +1814,7 @@ void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, im
 		mark = cgs.media.holeMarkShader;
 		radius = 12;
 		break;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_PROX_LAUNCHER:
 		mod = cgs.media.dishFlashModel;
 		shader = cgs.media.grenadeExplosionShader;
@@ -1812,12 +1827,23 @@ void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, im
 #endif
 	case WP_GRENADE_LAUNCHER:
 		mod = cgs.media.dishFlashModel;
-		shader = cgs.media.grenadeExplosionShader;
+		shader = cgs.media.rocketExplosionShader;
 		sfx = cgs.media.sfx_rockexp;
 		mark = cgs.media.burnMarkShader;
 		radius = 64;
 		light = 300;
 		isSprite = qtrue;
+		duration = 1000;
+		lightColor[0] = 1;
+		lightColor[1] = 0.75;
+		lightColor[2] = 0.0;
+		if (cg_oldRocket.integer == 0) {
+			// explosion sprite animation
+			VectorMA( origin, 24, dir, sprOrg );
+			VectorScale( dir, 64, sprVel );
+
+			CG_ParticleExplosion( "explode1", sprOrg, sprVel, 1400, 20, 30 );
+		}
 		break;
 	case WP_ROCKET_LAUNCHER:
 		mod = cgs.media.dishFlashModel;
@@ -1870,7 +1896,7 @@ void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, im
 		radius = 4;
 		break;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_CHAINGUN:
 		mod = cgs.media.bulletFlashModel;
 		if( soundType == IMPACTSOUND_FLESH ) {
@@ -1958,7 +1984,7 @@ void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum )
 	case WP_ROCKET_LAUNCHER:
 	case WP_PLASMAGUN:
 	case WP_BFG:
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	case WP_NAILGUN:
 	case WP_CHAINGUN:
 	case WP_PROX_LAUNCHER:
@@ -2039,8 +2065,9 @@ hit splashes
 ================
 */
 static void CG_ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, int otherEntNum ) {
-	int			i;
-	float		r, u;
+	int			i, n, c;
+	float		r, u, d;
+
 	vec3_t		end;
 	vec3_t		forward, right, up;
 
@@ -2050,16 +2077,35 @@ static void CG_ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, int othe
 	PerpendicularVector( right, forward );
 	CrossProduct( forward, right, up );
 
+	n = DEFAULT_SHOTGUN_COUNT;
+	d = DEFAULT_SHOTGUN_SPREAD / 2;
+	c = 3;
+	while (n > 0) {
+		float stepSize = (2 * M_PI) / c;
+		float step;
+		for (step = -M_PI; step < M_PI && n > 0; step += stepSize) {
+			r = cos(step) * d;
+			u = sin(step) * d;
+			VectorMA( origin, 8192, forward, end);
+			VectorMA (end, r, right, end);
+			VectorMA (end, u, up, end);
+			CG_ShotgunPellet( origin, end, otherEntNum );
+			n--;
+		}
+		d += (DEFAULT_SHOTGUN_SPREAD / 2);
+		c += 4;
+	}
+/*
 	// generate the "random" spread pattern
 	for ( i = 0 ; i < DEFAULT_SHOTGUN_COUNT ; i++ ) {
-		r = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD * 16;
-		u = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD * 16;
-		VectorMA( origin, 8192 * 16, forward, end);
+		r = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD;  // CPM
+		u = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD;  // CPM
+		VectorMA( origin, 8192, forward, end);
 		VectorMA (end, r, right, end);
 		VectorMA (end, u, up, end);
 
 		CG_ShotgunPellet( origin, end, otherEntNum );
-	}
+	}*/
 }
 
 /*

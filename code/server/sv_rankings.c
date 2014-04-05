@@ -130,6 +130,9 @@ void SV_RankBegin( char *gamekey )
 		case GT_HARVESTER:
 			gamekey = "Q3 Harvester";
 			break;
+		//case GT_FT:
+		//	gamekey = "Freeze Tag";
+		//	break;
 		default:
 			break;
 		}
@@ -1004,7 +1007,7 @@ static void SV_RankNewGameCBF( GR_NEWGAME* gr_newgame, void* cbf_arg )
 	}
 	else if( gr_newgame->status == GR_STATUS_BADLEAGUE )
 	{
-		SV_RankError( "SV_RankNewGameCBF: Invalid League name" );
+		SV_RankError( "SV_RankNewGameCBF: Invalid League name\n" );
 	}
 	else
 	{

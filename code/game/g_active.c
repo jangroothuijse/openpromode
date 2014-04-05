@@ -173,7 +173,7 @@ G_SetClientSound
 ===============
 */
 void G_SetClientSound( gentity_t *ent ) {
-#ifdef MISSIONPACK
+#if 1
 	if( ent->s.eFlags & EF_TICKING ) {
 		ent->client->ps.loopSound = G_SoundIndex( "sound/weapons/proxmine/wstbtick.wav");
 	}
@@ -333,6 +333,7 @@ void SpectatorThink( gentity_t *ent, usercmd_t *ucmd ) {
 		pm.pointcontents = trap_PointContents;
 
 		// perform a pmove
+		//Com_Printf("SpectatorThink");
 		Pmove (&pm);
 		// save results of pmove
 		VectorCopy( client->ps.origin, ent->s.origin );
@@ -346,7 +347,7 @@ void SpectatorThink( gentity_t *ent, usercmd_t *ucmd ) {
 
 	// attack button cycles through spectators
 	if ( ( client->buttons & BUTTON_ATTACK ) && ! ( client->oldbuttons & BUTTON_ATTACK ) ) {
-		Cmd_FollowCycle_f( ent, 1 );
+		//Cmd_FollowCycle_f( ent, 1 );
 	}
 }
 
@@ -393,7 +394,7 @@ Actions that happen once a second
 */
 void ClientTimerActions( gentity_t *ent, int msec ) {
 	gclient_t	*client;
-#ifdef MISSIONPACK
+#if 1
 	int			maxHealth;
 #endif
 
@@ -404,7 +405,7 @@ void ClientTimerActions( gentity_t *ent, int msec ) {
 		client->timeResidual -= 1000;
 
 		// regenerate
-#ifdef MISSIONPACK
+#if 1
 		if( bg_itemlist[client->ps.stats[STAT_PERSISTANT_POWERUP]].giTag == PW_GUARD ) {
 			maxHealth = client->ps.stats[STAT_MAX_HEALTH] / 2;
 		}
@@ -452,11 +453,11 @@ void ClientTimerActions( gentity_t *ent, int msec ) {
 		}
 
 		// count down armor when over max
-		if ( client->ps.stats[STAT_ARMOR] > client->ps.stats[STAT_MAX_HEALTH] ) {
-			client->ps.stats[STAT_ARMOR]--;
-		}
+		//if ( client->ps.stats[STAT_ARMOR] > client->ps.stats[STAT_MAX_HEALTH] ) {
+		//	client->ps.stats[STAT_ARMOR]--;
+		//} no counting down ARMOR!!!
 	}
-#ifdef MISSIONPACK
+#if 1
 	if( bg_itemlist[client->ps.stats[STAT_PERSISTANT_POWERUP]].giTag == PW_AMMOREGEN ) {
 		int w, max, inc, t, i;
     int weapList[]={WP_MACHINEGUN,WP_SHOTGUN,WP_GRENADE_LAUNCHER,WP_ROCKET_LAUNCHER,WP_LIGHTNING,WP_RAILGUN,WP_PLASMAGUN,WP_BFG,WP_NAILGUN,WP_PROX_LAUNCHER,WP_CHAINGUN};
@@ -553,9 +554,9 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 				break;
 			}
 			if ( event == EV_FALL_FAR ) {
-				damage = 10;
+				damage = 2;
 			} else {
-				damage = 5;
+				damage = 1;
 			}
 			ent->pain_debounce_time = level.time + 200;	// no normal pain sound
 			G_Damage (ent, NULL, NULL, NULL, NULL, damage, 0, MOD_FALLING);
@@ -592,7 +593,7 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 				ent->client->ps.powerups[ j ] = 0;
 			}
 
-#ifdef MISSIONPACK
+#if 1
 			if ( g_gametype.integer == GT_HARVESTER ) {
 				if ( ent->client->ps.generic1 > 0 ) {
 					if ( ent->client->sess.sessionTeam == TEAM_RED ) {
@@ -623,7 +624,7 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 
 			break;
 
-#ifdef MISSIONPACK
+#if 1
 		case EV_USE_ITEM3:		// kamikaze
 			// make sure the invulnerability is off
 			ent->client->invulnerabilityTime = 0;
@@ -644,6 +645,15 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			break;
 #endif
 
+		case EV_MELEE:
+			MeleeAttack( ent );
+			break;
+
+
+		case EV_SLIDE_MELEE:
+			SlideMeleeAttack( ent );
+			break;
+
 		default:
 			break;
 		}
@@ -651,7 +661,7 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 
 }
 
-#ifdef MISSIONPACK
+#if 1
 /*
 ==============
 StuckInOtherClient
@@ -800,7 +810,9 @@ void ClientThink_real( gentity_t *ent ) {
 	}
 
 	// spectators don't do much
-	if ( client->sess.sessionTeam == TEAM_SPECTATOR ) {
+	if ( client->sess.sessionTeam == TEAM_SPECTATOR ||
+			client->sess.spectatorState == SPECTATOR_FREE ||
+			client->sess.spectatorState == SPECTATOR_FOLLOW ) {
 		if ( client->sess.spectatorState == SPECTATOR_SCOREBOARD ) {
 			return;
 		}
@@ -831,7 +843,7 @@ void ClientThink_real( gentity_t *ent ) {
 	// set speed
 	client->ps.speed = g_speed.value;
 
-#ifdef MISSIONPACK
+#if 1
 	if( bg_itemlist[client->ps.stats[STAT_PERSISTANT_POWERUP]].giTag == PW_SCOUT ) {
 		client->ps.speed *= 1.5;
 	}
@@ -864,7 +876,7 @@ void ClientThink_real( gentity_t *ent ) {
 		ent->client->pers.cmd.buttons |= BUTTON_GESTURE;
 	}
 
-#ifdef MISSIONPACK
+#if 1
 	// check for invulnerability expansion before doing the Pmove
 	if (client->ps.powerups[PW_INVULNERABILITY] ) {
 		if ( !(client->ps.pm_flags & PMF_INVULEXPAND) ) {
@@ -912,7 +924,9 @@ void ClientThink_real( gentity_t *ent ) {
 
 	VectorCopy( client->ps.origin, client->oldOrigin );
 
-#ifdef MISSIONPACK
+	VectorCopy( client->ps.velocity, client->oldVelocity );
+
+#if 1
 		if (level.intermissionQueued != 0 && g_singlePlayer.integer) {
 			if ( level.time - level.intermissionQueued >= 1000  ) {
 				pm.cmd.buttons = 0;
@@ -925,6 +939,8 @@ void ClientThink_real( gentity_t *ent ) {
 				ent->client->ps.pm_type = PM_SPINTERMISSION;
 			}
 		}
+
+
 		Pmove (&pm);
 #else
 		Pmove (&pm);
@@ -955,6 +971,9 @@ void ClientThink_real( gentity_t *ent ) {
 	ent->waterlevel = pm.waterlevel;
 	ent->watertype = pm.watertype;
 
+	// touch other objects
+	ClientImpacts( ent, &pm );
+
 	// execute client events
 	ClientEvents( ent, oldEventSequence );
 
@@ -970,8 +989,6 @@ void ClientThink_real( gentity_t *ent ) {
 	//test for solid areas in the AAS file
 	BotTestAAS(ent->r.currentOrigin);
 
-	// touch other objects
-	ClientImpacts( ent, &pm );
 
 	// save results of triggers and client events
 	if (ent->client->ps.eventSequence != oldEventSequence) {
@@ -985,15 +1002,15 @@ void ClientThink_real( gentity_t *ent ) {
 
 	// check for respawning
 	if ( client->ps.stats[STAT_HEALTH] <= 0 ) {
-		// wait for the attack button to be pressed
+			// wait for the attack button to be pressed
 		if ( level.time > client->respawnTime ) {
 			// forcerespawn is to prevent users from waiting out powerups
-			if ( g_forcerespawn.integer > 0 && 
+			if ( g_forcerespawn.integer > 0 &&
 				( level.time - client->respawnTime ) > g_forcerespawn.integer * 1000 ) {
 				ClientRespawn( ent );
 				return;
 			}
-		
+
 			// pressing attack or use is the normal respawn method
 			if ( ucmd->buttons & ( BUTTON_ATTACK | BUTTON_USE_HOLDABLE ) ) {
 				ClientRespawn( ent );
@@ -1001,6 +1018,9 @@ void ClientThink_real( gentity_t *ent ) {
 		}
 		return;
 	}
+
+	// TODO freezetag
+	//CheckFreezeTag(ent);
 
 	// perform once-a-second actions
 	ClientTimerActions( ent, msec );
@@ -1173,5 +1193,3 @@ void ClientEndFrame( gentity_t *ent ) {
 //	i = trap_AAS_PointReachabilityAreaIndex( ent->client->ps.origin );
 //	ent->client->areabits[i >> 3] |= 1 << (i & 7);
 }
-
-

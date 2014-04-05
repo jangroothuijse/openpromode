@@ -255,6 +255,10 @@ static const char *teamNames2[] = {
 	NULL
 };
 
+static const char *teamNames3[] = {
+	"Red", "Blue", "Green", "Yellow", "Orange", "White", NULL
+};
+
 static void UI_AddBotsMenu_Init( void ) {
 	int		n;
 	int		y;
@@ -333,7 +337,9 @@ static void UI_AddBotsMenu_Init( void ) {
 	addBotsMenuInfo.team.generic.y			= y;
 	addBotsMenuInfo.team.generic.name		= "Team: ";
 	addBotsMenuInfo.team.generic.id			= ID_TEAM;
-	if( gametype >= GT_TEAM ) {
+	if (gametype >= GT_MULTI_TEAM) {
+		addBotsMenuInfo.team.itemnames		= teamNames3;
+	} else if( gametype >= GT_TEAM ) {
 		addBotsMenuInfo.team.itemnames		= teamNames2;
 	}
 	else {

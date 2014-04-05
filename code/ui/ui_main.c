@@ -94,7 +94,10 @@ static const char *teamArenaGameTypes[] = {
 	"CTF",
 	"1FCTF",
 	"OVERLOAD",
-	"HARVESTER"
+	"HARVESTER",
+	"FREEZE TAG",
+	"ELIMINATION",
+	"MULTI TEAM DM"
 };
 
 static int const numTeamArenaGameTypes = ARRAY_LEN( teamArenaGameTypes );
@@ -118,7 +121,7 @@ static void UI_StartServerRefresh(qboolean full);
 static void UI_StopServerRefresh( void );
 static void UI_DoServerRefresh( void );
 static void UI_FeederSelection(float feederID, int index);
-static void UI_BuildServerDisplayList(int force);
+static void UI_BuildServerDisplayList(qboolean force);
 static void UI_BuildServerStatus(qboolean force);
 static void UI_BuildFindPlayerList(qboolean force);
 static int QDECL UI_ServersQsortCompare( const void *arg1, const void *arg2 );
@@ -629,7 +632,7 @@ void _UI_Refresh( int realtime )
 	
 	// draw cursor
 	UI_SetColor( NULL );
-	if (Menu_Count() > 0 && (trap_Key_GetCatcher() & KEYCATCH_UI)) {
+	if (Menu_Count() > 0) {
 		UI_DrawHandlePic( uiInfo.uiDC.cursorx-16, uiInfo.uiDC.cursory-16, 32, 32, uiInfo.uiDC.Assets.cursor);
 	}
 
@@ -849,7 +852,7 @@ void UI_ParseMenu(const char *menuFile) {
 	int handle;
 	pc_token_t token;
 
-	Com_Printf("Parsing menu file: %s\n", menuFile);
+	Com_Printf("Parsing menu file:%s\n", menuFile);
 
 	handle = trap_PC_LoadSource(menuFile);
 	if (!handle) {
@@ -931,7 +934,7 @@ void UI_LoadMenus(const char *menuFile, qboolean reset) {
 		Com_Printf( S_COLOR_YELLOW "menu file not found: %s, using default\n", menuFile );
 		handle = trap_PC_LoadSource( "ui/menus.txt" );
 		if (!handle) {
-			trap_Error( S_COLOR_RED "default menu file not found: ui/menus.txt, unable to continue!" );
+			trap_Error( va( S_COLOR_RED "default menu file not found: ui/menus.txt, unable to continue!\n") );
 		}
 	}
 
@@ -3447,13 +3450,13 @@ static void UI_RunMenuScript(char **args) {
 		} else if (Q_stricmp(name, "addFavorite") == 0) {
 			if (ui_netSource.integer != UIAS_FAVORITES) {
 				char name[MAX_NAME_LENGTH];
-				char addr[MAX_ADDRESSLENGTH];
+				char addr[MAX_NAME_LENGTH];
 				int res;
 
 				trap_LAN_GetServerInfo(UI_SourceForLAN(), uiInfo.serverStatus.displayServers[uiInfo.serverStatus.currentServer], buff, MAX_STRING_CHARS);
 				name[0] = addr[0] = '\0';
-				Q_strncpyz(name, 	Info_ValueForKey(buff, "hostname"), sizeof ( name ) );
-				Q_strncpyz(addr, 	Info_ValueForKey(buff, "addr"), sizeof ( addr ) );
+				Q_strncpyz(name, 	Info_ValueForKey(buff, "hostname"), MAX_NAME_LENGTH);
+				Q_strncpyz(addr, 	Info_ValueForKey(buff, "addr"), MAX_NAME_LENGTH);
 				if (strlen(name) > 0 && strlen(addr) > 0) {
 					res = trap_LAN_AddServer(AS_FAVORITES, name, addr);
 					if (res == 0) {
@@ -3472,35 +3475,37 @@ static void UI_RunMenuScript(char **args) {
 			}
 		} else if (Q_stricmp(name, "deleteFavorite") == 0) {
 			if (ui_netSource.integer == UIAS_FAVORITES) {
-				char addr[MAX_ADDRESSLENGTH];
+				char addr[MAX_NAME_LENGTH];
 				trap_LAN_GetServerInfo(AS_FAVORITES, uiInfo.serverStatus.displayServers[uiInfo.serverStatus.currentServer], buff, MAX_STRING_CHARS);
 				addr[0] = '\0';
-				Q_strncpyz(addr, 	Info_ValueForKey(buff, "addr"), sizeof ( addr ) );
+				Q_strncpyz(addr, 	Info_ValueForKey(buff, "addr"), MAX_NAME_LENGTH);
 				if (strlen(addr) > 0) {
 					trap_LAN_RemoveServer(AS_FAVORITES, addr);
 				}
 			}
 		} else if (Q_stricmp(name, "createFavorite") == 0) {
-			char name[MAX_NAME_LENGTH];
-			char addr[MAX_ADDRESSLENGTH];
-			int res;
+			if (ui_netSource.integer == UIAS_FAVORITES) {
+				char name[MAX_NAME_LENGTH];
+				char addr[MAX_NAME_LENGTH];
+				int res;
 
-			name[0] = addr[0] = '\0';
-			Q_strncpyz(name, 	UI_Cvar_VariableString("ui_favoriteName"), sizeof ( name ) );
-			Q_strncpyz(addr, 	UI_Cvar_VariableString("ui_favoriteAddress"), sizeof ( addr ) );
-			if (strlen(name) > 0 && strlen(addr) > 0) {
-				res = trap_LAN_AddServer(AS_FAVORITES, name, addr);
-				if (res == 0) {
-					// server already in the list
-					Com_Printf("Favorite already in list\n");
-				}
-				else if (res == -1) {
-					// list full
-					Com_Printf("Favorite list full\n");
-				}
-				else {
-					// successfully added
-					Com_Printf("Added favorite server %s\n", addr);
+				name[0] = addr[0] = '\0';
+				Q_strncpyz(name, 	UI_Cvar_VariableString("ui_favoriteName"), MAX_NAME_LENGTH);
+				Q_strncpyz(addr, 	UI_Cvar_VariableString("ui_favoriteAddress"), MAX_NAME_LENGTH);
+				if (strlen(name) > 0 && strlen(addr) > 0) {
+					res = trap_LAN_AddServer(AS_FAVORITES, name, addr);
+					if (res == 0) {
+						// server already in the list
+						Com_Printf("Favorite already in list\n");
+					}
+					else if (res == -1) {
+						// list full
+						Com_Printf("Favorite list full\n");
+					}
+					else {
+						// successfully added
+						Com_Printf("Added favorite server %s\n", addr);
+					}
 				}
 			}
 		} else if (Q_stricmp(name, "orders") == 0) {
@@ -3762,7 +3767,7 @@ static void UI_BinaryServerInsertion(int num) {
 UI_BuildServerDisplayList
 ==================
 */
-static void UI_BuildServerDisplayList(int force) {
+static void UI_BuildServerDisplayList(qboolean force) {
 	int i, count, clients, maxClients, ping, game, len, visible;
 	char info[MAX_STRING_CHARS];
 //	qboolean startRefresh = qtrue; TTimo: unused
@@ -4470,7 +4475,7 @@ static void UI_FeederSelection(float feederID, int index) {
 	UI_SelectedHead(index, &actual);
 	index = actual;
     if (index >= 0 && index < uiInfo.characterCount) {
-		trap_Cvar_Set( "team_model", uiInfo.characterList[index].base);
+		trap_Cvar_Set( "team_model", va("%s", uiInfo.characterList[index].base));
 		trap_Cvar_Set( "team_headmodel", va("*%s", uiInfo.characterList[index].name)); 
 		updateModel = qtrue;
     }
@@ -4637,11 +4642,11 @@ static qboolean Character_Parse(char **p) {
 			uiInfo.characterList[uiInfo.characterCount].imageName = String_Alloc(va("models/players/heads/%s/icon_default.tga", uiInfo.characterList[uiInfo.characterCount].name));
 
 	  if (tempStr && (!Q_stricmp(tempStr, "female"))) {
-        uiInfo.characterList[uiInfo.characterCount].base = String_Alloc("Janet");
+        uiInfo.characterList[uiInfo.characterCount].base = String_Alloc(va("Janet"));
       } else if (tempStr && (!Q_stricmp(tempStr, "male"))) {
-        uiInfo.characterList[uiInfo.characterCount].base = String_Alloc("James");
+        uiInfo.characterList[uiInfo.characterCount].base = String_Alloc(va("James"));
 	  } else {
-        uiInfo.characterList[uiInfo.characterCount].base = String_Alloc(tempStr);
+        uiInfo.characterList[uiInfo.characterCount].base = String_Alloc(va("%s",tempStr));
 	  }
 
       Com_Printf("Loaded %s character %s.\n", uiInfo.characterList[uiInfo.characterCount].base, uiInfo.characterList[uiInfo.characterCount].name);
@@ -4783,7 +4788,7 @@ static qboolean GameType_Parse(char **p, qboolean join) {
 		}
 
 		if (token[0] == '{') {
-			// two tokens per line, gametype name and number
+			// two tokens per line, character name and sex
 			if (join) {
 				if (!String_Parse(p, &uiInfo.joinGameTypes[uiInfo.numJoinGameTypes].gameType) || !Int_Parse(p, &uiInfo.joinGameTypes[uiInfo.numJoinGameTypes].gtEnum)) {
 					return qfalse;
@@ -5106,6 +5111,7 @@ void _UI_Init( qboolean inGameLoad ) {
 	uiInfo.uiDC.drawSides = &_UI_DrawSides;
 	uiInfo.uiDC.drawTopBottom = &_UI_DrawTopBottom;
 	uiInfo.uiDC.clearScene = &trap_R_ClearScene;
+	uiInfo.uiDC.drawSides = &_UI_DrawSides;
 	uiInfo.uiDC.addRefEntityToScene = &trap_R_AddRefEntityToScene;
 	uiInfo.uiDC.renderScene = &trap_R_RenderScene;
 	uiInfo.uiDC.registerFont = &trap_R_RegisterFont;
@@ -5552,7 +5558,7 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 	}
 
 	if (!Q_stricmp(cstate.servername,"localhost")) {
-		Text_PaintCenter(centerPoint, yStart + 48, scale, colorWhite, "Starting up...", ITEM_TEXTSTYLE_SHADOWEDMORE);
+		Text_PaintCenter(centerPoint, yStart + 48, scale, colorWhite, va("Starting up..."), ITEM_TEXTSTYLE_SHADOWEDMORE);
 	} else {
 		strcpy(text, va("Connecting to %s", cstate.servername));
 		Text_PaintCenter(centerPoint, yStart + 48, scale, colorWhite,text , ITEM_TEXTSTYLE_SHADOWEDMORE);

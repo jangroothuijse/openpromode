@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 //
 #include "../qcommon/q_shared.h"
-#include "../renderercommon/tr_types.h"
+#include "../renderer/tr_types.h"
 #include "../game/bg_public.h"
 #include "cg_public.h"
 
@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // If you absolutely need something stored, it can either be kept
 // by the server in the server stored userinfos, or stashed in a cvar.
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 #define CG_FONT_THRESHOLD 0.1
 #endif
 
@@ -83,13 +83,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define TEAM_OVERLAY_MAXNAME_WIDTH	12
 #define TEAM_OVERLAY_MAXLOCATION_WIDTH	16
 
-#define	DEFAULT_MODEL			"sarge"
-#ifdef MISSIONPACK
-#define	DEFAULT_TEAM_MODEL		"james"
-#define	DEFAULT_TEAM_HEAD		"*james"
+#define	DEFAULT_MODEL			"promarine"
+#if MISSIONPACK
+#define	DEFAULT_TEAM_MODEL		"promarine"
+#define	DEFAULT_TEAM_HEAD		"*promarine"
 #else
-#define	DEFAULT_TEAM_MODEL		"sarge"
-#define	DEFAULT_TEAM_HEAD		"sarge"
+#define	DEFAULT_TEAM_MODEL		"promarine"
+#define	DEFAULT_TEAM_HEAD		"promarine"
 #endif
 
 #define DEFAULT_REDTEAM_NAME		"Stroggs"
@@ -224,7 +224,7 @@ typedef enum {
 	LE_FADE_RGB,
 	LE_SCALE_FADE,
 	LE_SCOREPLUM,
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	LE_KAMIKAZE,
 	LE_INVULIMPACT,
 	LE_INVULJUICED,
@@ -550,7 +550,7 @@ typedef struct {
 	int				spectatorOffset;										// current offset from start
 	int				spectatorPaintLen; 									// current offset from start
 
-#ifdef MISSIONPACK
+#if 1
 	// skull trails
 	skulltrail_t	skulltrails[MAX_CLIENTS];
 #endif
@@ -590,12 +590,10 @@ typedef struct {
 	int			soundTime;
 	qhandle_t	soundBuffer[MAX_SOUNDBUFFER];
 
-#ifdef MISSIONPACK
 	// for voice chat buffer
 	int			voiceChatTime;
 	int			voiceChatBufferIn;
 	int			voiceChatBufferOut;
-#endif
 
 	// warmup countdown
 	int			warmup;
@@ -657,12 +655,12 @@ typedef struct {
 	qhandle_t	charsetPropB;
 	qhandle_t	whiteShader;
 
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	qhandle_t	redCubeModel;
 	qhandle_t	blueCubeModel;
 	qhandle_t	redCubeIcon;
 	qhandle_t	blueCubeIcon;
-#endif
+//#endif
 	qhandle_t	redFlagModel;
 	qhandle_t	blueFlagModel;
 	qhandle_t	neutralFlagModel;
@@ -681,7 +679,7 @@ typedef struct {
 	qhandle_t	blueFlagBaseModel;
 	qhandle_t	neutralFlagBaseModel;
 
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	qhandle_t	overloadBaseModel;
 	qhandle_t	overloadTargetModel;
 	qhandle_t	overloadLightsModel;
@@ -691,10 +689,16 @@ typedef struct {
 	qhandle_t	harvesterRedSkin;
 	qhandle_t	harvesterBlueSkin;
 	qhandle_t	harvesterNeutralModel;
-#endif
+//#endif
 
 	qhandle_t	armorModel;
 	qhandle_t	armorIcon;
+
+	qhandle_t	armorModelRA;
+	qhandle_t	armorIconRA;
+
+	qhandle_t	armorModelGA;
+	qhandle_t	armorIconGA;
 
 	qhandle_t	teamStatusBar;
 
@@ -741,10 +745,10 @@ typedef struct {
 	qhandle_t	plasmaBallShader;
 	qhandle_t	waterBubbleShader;
 	qhandle_t	bloodTrailShader;
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	qhandle_t	nailPuffShader;
 	qhandle_t	blueProxMine;
-#endif
+//#endif
 
 	qhandle_t	numberShaders[11];
 
@@ -769,10 +773,8 @@ typedef struct {
 	qhandle_t	battleSuitShader;
 	qhandle_t	battleWeaponShader;
 	qhandle_t	hastePuffShader;
-#ifdef MISSIONPACK
 	qhandle_t	redKamikazeShader;
 	qhandle_t	blueKamikazeShader;
-#endif
 
 	// weapon effect models
 	qhandle_t	bulletFlashModel;
@@ -792,7 +794,7 @@ typedef struct {
 	// special effects models
 	qhandle_t	teleportEffectModel;
 	qhandle_t	teleportEffectShader;
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	qhandle_t	kamikazeEffectModel;
 	qhandle_t	kamikazeShockWave;
 	qhandle_t	kamikazeHeadModel;
@@ -806,8 +808,8 @@ typedef struct {
 	qhandle_t	medkitUsageModel;
 	qhandle_t	dustPuffShader;
 	qhandle_t	heartShader;
+//#endif
 	qhandle_t	invulnerabilityPowerupModel;
-#endif
 
 	// scoreboard headers
 	qhandle_t	scoreboardName;
@@ -839,7 +841,7 @@ typedef struct {
 	//sfxHandle_t	sfx_railg;
 	sfxHandle_t	sfx_rockexp;
 	sfxHandle_t	sfx_plasmaexp;
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	sfxHandle_t	sfx_proxexp;
 	sfxHandle_t	sfx_nghit;
 	sfxHandle_t	sfx_nghitflesh;
@@ -861,7 +863,7 @@ typedef struct {
 	sfxHandle_t	obeliskRespawnSound;
 	sfxHandle_t	winnerSound;
 	sfxHandle_t	loserSound;
-#endif
+//#endif
 	sfxHandle_t	gibSound;
 	sfxHandle_t	gibBounce1Sound;
 	sfxHandle_t	gibBounce2Sound;
@@ -883,7 +885,7 @@ typedef struct {
 	sfxHandle_t twoFragSound;
 	sfxHandle_t oneFragSound;
 
-	sfxHandle_t hitSound;
+	sfxHandle_t hitSound[4];
 	sfxHandle_t hitSoundHighArmor;
 	sfxHandle_t hitSoundLowArmor;
 	sfxHandle_t hitTeamSound;
@@ -912,9 +914,7 @@ typedef struct {
 	sfxHandle_t flightSound;
 	sfxHandle_t medkitSound;
 
-#ifdef MISSIONPACK
 	sfxHandle_t weaponHoverSound;
-#endif
 
 	// teamplay sounds
 	sfxHandle_t captureAwardSound;
@@ -933,17 +933,13 @@ typedef struct {
 
 	sfxHandle_t redFlagReturnedSound;
 	sfxHandle_t blueFlagReturnedSound;
-#ifdef MISSIONPACK
 	sfxHandle_t neutralFlagReturnedSound;
-#endif
 	sfxHandle_t	enemyTookYourFlagSound;
-	sfxHandle_t yourTeamTookEnemyFlagSound;
-	sfxHandle_t	youHaveFlagSound;
-#ifdef MISSIONPACK
 	sfxHandle_t	enemyTookTheFlagSound;
+	sfxHandle_t yourTeamTookEnemyFlagSound;
 	sfxHandle_t yourTeamTookTheFlagSound;
+	sfxHandle_t	youHaveFlagSound;
 	sfxHandle_t yourBaseIsUnderAttackSound;
-#endif
 	sfxHandle_t holyShitSound;
 
 	// tournament sounds
@@ -953,7 +949,7 @@ typedef struct {
 	sfxHandle_t	countFightSound;
 	sfxHandle_t	countPrepareSound;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	// new stuff
 	qhandle_t patrolShader;
 	qhandle_t assaultShader;
@@ -970,11 +966,10 @@ typedef struct {
 	sfxHandle_t doublerSound;
 	sfxHandle_t guardSound;
 	sfxHandle_t scoutSound;
-
+#endif
 	qhandle_t cursor;
 	qhandle_t selectCursor;
 	qhandle_t sizeCursor;
-#endif
 
 	sfxHandle_t	regenSound;
 	sfxHandle_t	protectSound;
@@ -1031,7 +1026,7 @@ typedef struct {
 
 	int				levelStartTime;
 
-	int				scores1, scores2;		// from configstrings
+	int				scores1, scores2, scores3, scores4, scores5, scores6;		// from configstrings
 	int				redflag, blueflag;		// flag status from configstrings
 	int				flagStatus;
 
@@ -1156,10 +1151,8 @@ extern	vmCvar_t		cg_predictItems;
 extern	vmCvar_t		cg_deferPlayers;
 extern	vmCvar_t		cg_drawFriend;
 extern	vmCvar_t		cg_teamChatsOnly;
-#ifdef MISSIONPACK
 extern	vmCvar_t		cg_noVoiceChats;
 extern	vmCvar_t		cg_noVoiceText;
-#endif
 extern  vmCvar_t		cg_scorePlum;
 extern	vmCvar_t		cg_smoothClients;
 extern	vmCvar_t		pmove_fixed;
@@ -1179,7 +1172,7 @@ extern	vmCvar_t		cg_oldRail;
 extern	vmCvar_t		cg_oldRocket;
 extern	vmCvar_t		cg_oldPlasma;
 extern	vmCvar_t		cg_trueLightning;
-#ifdef MISSIONPACK
+#if 1
 extern	vmCvar_t		cg_redTeamName;
 extern	vmCvar_t		cg_blueTeamName;
 extern	vmCvar_t		cg_currentSelectedPlayer;
@@ -1342,7 +1335,7 @@ void CG_PainEvent( centity_t *cent, int health );
 void CG_SetEntitySoundPosition( centity_t *cent );
 void CG_AddPacketEntities( void );
 void CG_Beam( centity_t *cent );
-void CG_AdjustPositionForMover(const vec3_t in, int moverNum, int fromTime, int toTime, vec3_t out, vec3_t angles_in, vec3_t angles_out);
+void CG_AdjustPositionForMover( const vec3_t in, int moverNum, int fromTime, int toTime, vec3_t out );
 
 void CG_PositionEntityOnTag( refEntity_t *entity, const refEntity_t *parent, 
 							qhandle_t parentModel, char *tagName );
@@ -1408,10 +1401,12 @@ localEntity_t *CG_SmokePuff( const vec3_t p,
 				   qhandle_t hShader );
 void CG_BubbleTrail( vec3_t start, vec3_t end, float spacing );
 void CG_SpawnEffect( vec3_t org );
-#ifdef MISSIONPACK
+#if MISSIONPACK
 void CG_KamikazeEffect( vec3_t org );
+#endif
 void CG_ObeliskExplode( vec3_t org, int entityNum );
 void CG_ObeliskPain( vec3_t org );
+#if MISSIONPACK
 void CG_InvulnerabilityImpact( vec3_t org, vec3_t angles );
 void CG_InvulnerabilityJuiced( vec3_t org );
 void CG_LightningBoltBeam( vec3_t start, vec3_t end );
@@ -1458,12 +1453,10 @@ void CG_InitConsoleCommands( void );
 void CG_ExecuteNewServerCommands( int latestSequence );
 void CG_ParseServerinfo( void );
 void CG_SetConfigValues( void );
-void CG_ShaderStateChanged(void);
-#ifdef MISSIONPACK
 void CG_LoadVoiceChats( void );
+void CG_ShaderStateChanged(void);
 void CG_VoiceChatLocal( int mode, qboolean voiceOnly, int clientNum, int color, const char *cmd );
 void CG_PlayBufferedVoiceChats( void );
-#endif
 
 //
 // cg_playerstate.c
@@ -1518,7 +1511,6 @@ void		trap_SendConsoleCommand( const char *text );
 // register a command name so the console can perform command completion.
 // FIXME: replace this with a normal console command "defineCommand"?
 void		trap_AddCommand( const char *cmdName );
-void		trap_RemoveCommand( const char *cmdName );
 
 // send a string to the server over the network
 void		trap_SendClientCommand( const char *s );
@@ -1536,14 +1528,7 @@ int			trap_CM_TransformedPointContents( const vec3_t p, clipHandle_t model, cons
 void		trap_CM_BoxTrace( trace_t *results, const vec3_t start, const vec3_t end,
 					  const vec3_t mins, const vec3_t maxs,
 					  clipHandle_t model, int brushmask );
-void		trap_CM_CapsuleTrace( trace_t *results, const vec3_t start, const vec3_t end,
-					  const vec3_t mins, const vec3_t maxs,
-					  clipHandle_t model, int brushmask );
 void		trap_CM_TransformedBoxTrace( trace_t *results, const vec3_t start, const vec3_t end,
-					  const vec3_t mins, const vec3_t maxs,
-					  clipHandle_t model, int brushmask,
-					  const vec3_t origin, const vec3_t angles );
-void		trap_CM_TransformedCapsuleTrace( trace_t *results, const vec3_t start, const vec3_t end,
 					  const vec3_t mins, const vec3_t maxs,
 					  clipHandle_t model, int brushmask,
 					  const vec3_t origin, const vec3_t angles );
@@ -1593,7 +1578,6 @@ void		trap_R_AddRefEntityToScene( const refEntity_t *re );
 void		trap_R_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts );
 void		trap_R_AddPolysToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int numPolys );
 void		trap_R_AddLightToScene( const vec3_t org, float intensity, float r, float g, float b );
-void		trap_R_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, float g, float b );
 int			trap_R_LightForPoint( vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );
 void		trap_R_RenderScene( const refdef_t *fd );
 void		trap_R_SetColor( const float *rgba );	// NULL = 1,1,1,1
@@ -1603,7 +1587,6 @@ void		trap_R_ModelBounds( clipHandle_t model, vec3_t mins, vec3_t maxs );
 int			trap_R_LerpTag( orientation_t *tag, clipHandle_t mod, int startFrame, int endFrame, 
 					   float frac, const char *tagName );
 void		trap_R_RemapShader( const char *oldShader, const char *newShader, const char *timeOffset );
-qboolean	trap_R_inPVS( const vec3_t p1, const vec3_t p2 );
 
 // The glconfig_t will not change during the life of a cgame.
 // If it needs to change, the entire cgame will be restarted, because
@@ -1665,8 +1648,7 @@ e_status trap_CIN_RunCinematic (int handle);
 void trap_CIN_DrawCinematic (int handle);
 void trap_CIN_SetExtents (int handle, int x, int y, int w, int h);
 
-int			trap_RealTime(qtime_t *qtime);
-void		trap_SnapVector( float *v );
+void trap_SnapVector( float *v );
 
 qboolean	trap_loadCamera(const char *name);
 void		trap_startCamera(int time);
@@ -1688,4 +1670,5 @@ void	CG_ParticleExplosion (char *animStr, vec3_t origin, vec3_t vel, int duratio
 extern qboolean		initparticles;
 int CG_NewParticleArea ( int num );
 
-
+void	CG_Melee(centity_t *cent);
+void	CG_SlideMelee(centity_t *cent);

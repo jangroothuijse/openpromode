@@ -93,7 +93,7 @@ void G_ExplodeMissile( gentity_t *ent ) {
 }
 
 
-#ifdef MISSIONPACK
+#if 1
 /*
 ================
 ProximityMine_Explode
@@ -270,11 +270,13 @@ G_MissileImpact
 void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 	gentity_t		*other;
 	qboolean		hitClient = qfalse;
-#ifdef MISSIONPACK
+#if 1
 	vec3_t			forward, impactpoint, bouncedir;
 	int				eFlags;
 #endif
 	other = &g_entities[trace->entityNum];
+
+
 
 	// check for bounce
 	if ( !other->takedamage &&
@@ -284,7 +286,7 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 		return;
 	}
 
-#ifdef MISSIONPACK
+#if 1
 	if ( other->takedamage ) {
 		if ( ent->s.weapon != WP_PROX_LAUNCHER ) {
 			if ( other->client && other->client->invulnerabilityTime > level.time ) {
@@ -324,7 +326,7 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 		}
 	}
 
-#ifdef MISSIONPACK
+#if 1
 	if( ent->s.weapon == WP_PROX_LAUNCHER ) {
 		if( ent->s.pos.trType != TR_GRAVITY ) {
 			return;
@@ -448,16 +450,106 @@ G_RunMissile
 void G_RunMissile( gentity_t *ent ) {
 	vec3_t		origin;
 	trace_t		tr;
-	int			passent;
+	int			passent, i, num;
+	int			touch[MAX_GENTITIES];
+	gentity_t	*hit;
+	vec3_t		mins, maxs;
+	static vec3_t	range = { 50, 50, 50 };
+	static int step = 50;
+	float			j;
+	static vec3_t	dif;
+	float		distance;
+	vec3_t		intermidiate;
 
+	/*VectorSubtract( origin, range, mins );
+	VectorAdd( origin, range, maxs );
+	num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+	for ( i=0 ; i<num ; i++ ) {
+			hit = &g_entities[touch[i]];
+			if (hit->s.eType == ET_TELEPORT_TRIGGER) {
+				Com_Printf("Teleporting...\n");
+				//memset( &trace, 0, sizeof(trace) );
+				hit->touch(hit, ent, &tr);
+				return; // teleport away
+			}
+	}*/
+	/*
 	// get current position
+	*/
 	BG_EvaluateTrajectory( &ent->s.pos, level.time, origin );
+	/*
+
+	trap_Trace (&tr, ent->r.currentOrigin, NULL, NULL, origin, 0, CONTENTS_TELEPORTER);
+	if (tr.fraction < 1.0) {
+		Com_Printf("Teleporting missile\n");
+		hit = &g_entities[tr.entityNum];
+		hit->touch(hit, ent, &tr);
+		G_RunThink( ent );
+		return; // teleport away
+	}
+*/
+
+	// trace boxes from current origin to the next.
+	VectorSubtract( origin, ent->r.currentOrigin, dif );
+	distance = sqrt(dif[0]*dif[0]+dif[1]*dif[1]+dif[2]*dif[2]);
+	if (distance != 0) {
+		dif[0] /= distance;
+		dif[1] /= distance;
+		dif[2] /= distance;
+	}
+	for (j = step; j < distance; j+= step) {
+		// Performance hog for high-velocity high-rate weapons? (plasma)
+		VectorScale(dif, j, intermidiate);
+		VectorAdd(intermidiate, ent->r.currentOrigin, intermidiate);
+		VectorSubtract( intermidiate, range, mins );
+		VectorAdd( intermidiate, range, maxs );
+		num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+			for ( i=0 ; i<num ; i++ ) {
+					hit = &g_entities[touch[i]];
+					if (hit->s.eType == ET_TELEPORT_TRIGGER) {
+						//Com_Printf("Teleporting...\n");
+						//memset( &trace, 0, sizeof(trace) );
+						hit->touch(hit, ent, &tr);
+						G_RunThink( ent );
+						return; // teleport away
+					}
+			}
+	}
+
+	VectorSubtract( origin, range, mins );
+	VectorAdd( origin, range, maxs );
+	num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+	for ( i=0 ; i<num ; i++ ) {
+			hit = &g_entities[touch[i]];
+			if (hit->s.eType == ET_TELEPORT_TRIGGER) {
+				//Com_Printf("Teleporting...\n");
+				//memset( &trace, 0, sizeof(trace) );
+				hit->touch(hit, ent, &tr);
+				G_RunThink( ent );
+				return; // teleport away
+			}
+	}
+
+	// trace teleporters
+	/*trap_Trace( &tr, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, passent,
+			MASK_PLAYERSOLID );
+	if ( tr.fraction != 1 ) {
+		gentity_t *teleporter;
+		Com_Printf("traced something!\n");
+		teleporter = &g_entities[tr.entityNum];
+		Com_Printf("hit: %s\n", teleporter->classname);
+		if (teleporter->s.eType == ET_TELEPORT_TRIGGER) {
+			Com_Printf("Teleporting...\n");
+			teleporter->touch(teleporter, ent, &tr);
+			return; // teleport away
+		}
+	}*/
 
 	// if this missile bounced off an invulnerability sphere
 	if ( ent->target_ent ) {
 		passent = ent->target_ent->s.number;
 	}
-#ifdef MISSIONPACK
+#if 1
 	// prox mines that left the owner bbox will attach to anything, even the owner
 	else if (ent->s.weapon == WP_PROX_LAUNCHER && ent->count) {
 		passent = ENTITYNUM_NONE;
@@ -479,6 +571,8 @@ void G_RunMissile( gentity_t *ent ) {
 		VectorCopy( tr.endpos, ent->r.currentOrigin );
 	}
 
+
+
 	trap_LinkEntity( ent );
 
 	if ( tr.fraction != 1 ) {
@@ -491,12 +585,28 @@ void G_RunMissile( gentity_t *ent ) {
 			G_FreeEntity( ent );
 			return;
 		}
+
+
+		// When the missle moves on the first frame (by preset logic)
+		// it can hit a wall behind the teleporter, this code prevents that.
+		/*VectorSubtract( origin, range2, mins );
+		VectorAdd( origin, range2, maxs );
+		num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+		for ( i=0 ; i<num ; i++ ) {
+			hit = &g_entities[touch[i]];
+			if (hit->s.eType == ET_TELEPORT_TRIGGER) {
+				//memset( &trace, 0, sizeof(trace) );
+				hit->touch(hit, ent, &tr);
+				return; // teleport away
+			}
+		}*/
+
 		G_MissileImpact( ent, &tr );
 		if ( ent->s.eType != ET_MISSILE ) {
 			return;		// exploded
 		}
 	}
-#ifdef MISSIONPACK
+#if 1
 	// if the prox mine wasn't yet outside the player body
 	if (ent->s.weapon == WP_PROX_LAUNCHER && !ent->count) {
 		// check if the prox mine is outside the owner bbox
@@ -535,7 +645,7 @@ gentity_t *fire_plasma (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->parent = self;
 	bolt->damage = 20;
 	bolt->splashDamage = 15;
-	bolt->splashRadius = 20;
+	bolt->splashRadius = 40;
 	bolt->methodOfDeath = MOD_PLASMA;
 	bolt->splashMethodOfDeath = MOD_PLASMA_SPLASH;
 	bolt->clipmask = MASK_SHOT;
@@ -544,7 +654,7 @@ gentity_t *fire_plasma (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.pos.trType = TR_LINEAR;
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
 	VectorCopy( start, bolt->s.pos.trBase );
-	VectorScale( dir, 2000, bolt->s.pos.trDelta );
+	VectorScale( dir, 1750, bolt->s.pos.trDelta );
 	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
 
 	VectorCopy (start, bolt->r.currentOrigin);
@@ -575,8 +685,8 @@ gentity_t *fire_grenade (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.eFlags = EF_BOUNCE_HALF;
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
-	bolt->damage = 100;
-	bolt->splashDamage = 100;
+	bolt->damage = 120;
+	bolt->splashDamage = 120;
 	bolt->splashRadius = 150;
 	bolt->methodOfDeath = MOD_GRENADE;
 	bolt->splashMethodOfDeath = MOD_GRENADE_SPLASH;
@@ -586,7 +696,7 @@ gentity_t *fire_grenade (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.pos.trType = TR_GRAVITY;
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
 	VectorCopy( start, bolt->s.pos.trBase );
-	VectorScale( dir, 700, bolt->s.pos.trDelta );
+	VectorScale( dir, 750, bolt->s.pos.trDelta );
 	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
 
 	VectorCopy (start, bolt->r.currentOrigin);
@@ -617,8 +727,8 @@ gentity_t *fire_bfg (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
 	bolt->damage = 100;
-	bolt->splashDamage = 100;
-	bolt->splashRadius = 120;
+	bolt->splashDamage = 15;	// same as plasma
+	bolt->splashRadius = 40;	// to allow very small trickjumps
 	bolt->methodOfDeath = MOD_BFG;
 	bolt->splashMethodOfDeath = MOD_BFG_SPLASH;
 	bolt->clipmask = MASK_SHOT;
@@ -627,7 +737,7 @@ gentity_t *fire_bfg (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.pos.trType = TR_LINEAR;
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
 	VectorCopy( start, bolt->s.pos.trBase );
-	VectorScale( dir, 2000, bolt->s.pos.trDelta );
+	VectorScale( dir, 2100, bolt->s.pos.trDelta );
 	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
 	VectorCopy (start, bolt->r.currentOrigin);
 
@@ -667,7 +777,7 @@ gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.pos.trType = TR_LINEAR;
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
 	VectorCopy( start, bolt->s.pos.trBase );
-	VectorScale( dir, 900, bolt->s.pos.trDelta );
+	VectorScale( dir, 1050, bolt->s.pos.trDelta );
 	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
 	VectorCopy (start, bolt->r.currentOrigin);
 
@@ -711,7 +821,7 @@ gentity_t *fire_grapple (gentity_t *self, vec3_t start, vec3_t dir) {
 }
 
 
-#ifdef MISSIONPACK
+#if 1
 /*
 =================
 fire_nail
@@ -807,3 +917,40 @@ gentity_t *fire_prox( gentity_t *self, vec3_t start, vec3_t dir ) {
 	return bolt;
 }
 #endif
+
+void TeleportMissle( gentity_t *missle, vec3_t origin, vec3_t angles, vec3_t entrance) {
+	vec3_t endPoint;
+	vec3_t currentPos;
+	//gentity_t	*tent;
+	float speed;
+	vec3_t dir;
+	entrance[2] += 20;
+
+	BG_EvaluateTrajectory( &missle->s.pos, level.time, currentPos );
+	G_TempEntity(currentPos, EV_PLAYER_TELEPORT_OUT);
+	// TODO use tent for effects. or not; plasma would become a mess..
+	speed = sqrt( missle->s.pos.trDelta[0]*missle->s.pos.trDelta[0]
+	             +missle->s.pos.trDelta[1]*missle->s.pos.trDelta[1]
+	             +missle->s.pos.trDelta[2]*missle->s.pos.trDelta[2]);
+	AngleVectors( angles, dir, NULL, NULL );
+	// Should this be?
+	VectorNormalize(dir);
+	missle->s.pos.trDelta[0] = dir[0] * speed;
+	missle->s.pos.trDelta[1] = dir[1] * speed;
+	missle->s.pos.trDelta[2] = dir[2] * speed;
+	VectorCopy( origin, endPoint);
+	missle->s.pos.trTime = level.time;
+
+
+	// To clear the entrance of the teleporter on the other side.
+	//endPoint[0] += dir[0] * 0.2; // 0.2 was 2 was 25
+	//endPoint[1] += dir[1] * 0.2;
+	endPoint[2] += 20; // half body height
+	// Move
+	//missle->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;
+	G_TempEntity(endPoint, EV_PLAYER_TELEPORT_IN);
+	VectorCopy ( endPoint, missle->s.pos.trBase );
+	VectorCopy ( endPoint, missle->r.currentOrigin );
+
+}
+

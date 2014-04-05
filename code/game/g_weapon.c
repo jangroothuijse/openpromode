@@ -109,7 +109,7 @@ qboolean CheckGauntletAttack( gentity_t *ent ) {
 	} else {
 		s_quadFactor = 1;
 	}
-#ifdef MISSIONPACK
+#if 1
 	if( ent->client->persistantPowerup && ent->client->persistantPowerup->item && ent->client->persistantPowerup->item->giTag == PW_DOUBLER ) {
 		s_quadFactor *= 2;
 	}
@@ -122,6 +122,135 @@ qboolean CheckGauntletAttack( gentity_t *ent ) {
 	return qtrue;
 }
 
+void MeleeAttack( gentity_t *ent )
+{
+	trace_t		tr;
+	vec3_t		end;
+	vec3_t		origin;
+	gentity_t	*traceEnt;
+	gentity_t	*tent;
+	int			damage, num, i;
+	int			touch[MAX_GENTITIES];
+
+	//Com_Printf("MeleeAttack\n");
+
+	// set aiming directions
+	AngleVectors (ent->client->ps.viewangles, forward, right, up);
+	VectorCopy(ent->s.pos.trBase, origin);
+	origin[2] += 30; // Kickheight
+	VectorMA (origin, 88, forward, end);
+	if (origin[0] > end[0]) {
+		float tmp;
+		tmp = origin[0];
+		origin[0] = end[0];
+		end[0] = tmp;
+	}
+	if (origin[1] > end[1]) {
+		float tmp;
+		tmp = origin[1];
+		origin[1] = end[1];
+		end[1] = tmp;
+	}
+	origin[0] -= 15;
+	origin[1] -= 15;
+	end[0] += 15;
+	end[1] += 15;
+
+	end[2] = origin[2];
+	origin[2] -= 40;
+	// Margin, this because trap only catches origins with the box.
+
+	//Com_Printf("o(%f, %f, %f), e(%f, %f, %f)",
+	//			origin[0], origin[1], origin[2],
+	//			end[0], end[1], end[2]);
+
+	num = trap_EntitiesInBox( origin, end, touch, MAX_GENTITIES );
+	for ( i=0 ; i<num ; i++ ) {
+		traceEnt = &g_entities[touch[i]];
+		if (traceEnt->s.eType == ET_PLAYER && traceEnt != ent && traceEnt->client) {
+			damage = 20 * s_quadFactor;
+			G_Damage( traceEnt, ent, ent, forward, tr.endpos,
+				damage, 0, MOD_GAUNTLET );
+			tent = G_TempEntity( traceEnt->client->oldOrigin, EV_MISSILE_HIT );
+
+			// law of making your target easier to hit > law of conservation of energy
+			if (ent->client->ps.velocity[2] > 0)
+				ent->client->ps.velocity[2] -= 100;	 // attacker goes down if flying
+			else
+				ent->client->ps.velocity[2] += 50;
+
+			traceEnt->client->ps.velocity[2] = 400.0; // target goes up
+			traceEnt->client->ps.velocity[0] = ent->client->ps.velocity[0]
+											   + (200.0 * forward[0]);
+			traceEnt->client->ps.velocity[1] = ent->client->ps.velocity[1]
+												   + (200.0 * forward[1]);
+			ent->client->ps.velocity[0] *= 0.5;
+			ent->client->ps.velocity[1] *= 0.5;
+		}
+	}
+}
+
+
+
+void SlideMeleeAttack( gentity_t *ent )
+{
+	trace_t		tr;
+	vec3_t		end, origin, forward, right, up;
+	gentity_t	*tent;
+	gentity_t	*traceEnt;
+	int			damage, num, i;
+	int			touch[MAX_GENTITIES];
+
+	AngleVectors (ent->client->ps.viewangles, forward, right, up);
+	VectorCopy(ent->s.pos.trBase, origin);
+	origin[2] += 30; // Kickheight
+	VectorMA (origin, 30, forward, end);
+	if (origin[0] > end[0]) {
+		float tmp;
+		tmp = origin[0];
+		origin[0] = end[0];
+		end[0] = tmp;
+	}
+	if (origin[1] > end[1]) {
+		float tmp;
+		tmp = origin[1];
+		origin[1] = end[1];
+		end[1] = tmp;
+	}
+	origin[0] -= 18;
+	origin[1] -= 18;
+	end[0] += 18;
+	end[1] += 18;
+
+	end[2] = origin[2];
+	origin[2] -= 40;
+
+	num = trap_EntitiesInBox( origin, end, touch, MAX_GENTITIES );
+	for ( i=0 ; i<num ; i++ ) {
+		traceEnt = &g_entities[touch[i]];
+		if (traceEnt->s.eType == ET_PLAYER && traceEnt != ent && traceEnt->client) {
+
+			damage = 20 * s_quadFactor;
+			G_Damage( traceEnt, ent, ent, forward, tr.endpos,
+				damage, 0, MOD_GAUNTLET );;
+			// law of making your target easier to hit > law of conservation of energy
+			if (ent->client->ps.velocity[2] > 0)
+				ent->client->ps.velocity[2] -= 100;	 // attacker goes down if flying
+			else
+				ent->client->ps.velocity[2] += 50;
+
+			tent = G_TempEntity( traceEnt->client->oldOrigin, EV_MISSILE_HIT );
+			traceEnt->client->ps.velocity[2] = 400.0; // target goes up
+			traceEnt->client->ps.velocity[0] = ent->client->ps.velocity[0]
+											   + (200.0 * forward[0]);
+			traceEnt->client->ps.velocity[1] = ent->client->ps.velocity[1]
+												   + (200.0 * forward[1]);
+
+			ent->client->ps.velocity[0] *= 0.95;
+			ent->client->ps.velocity[1] *= 0.95;
+		}
+	}
+}
 
 /*
 ======================================================================
@@ -153,34 +282,55 @@ void SnapVectorTowards( vec3_t v, vec3_t to ) {
 	}
 }
 
-#ifdef MISSIONPACK
+#if 1
 #define CHAINGUN_SPREAD		600
-#define CHAINGUN_DAMAGE		7
 #endif
-#define MACHINEGUN_SPREAD	200
+#define MACHINEGUN_SPREAD	300
 #define	MACHINEGUN_DAMAGE	7
-#define	MACHINEGUN_TEAM_DAMAGE	5		// wimpier MG in teamplay
+#define	MACHINEGUN_TEAM_DAMAGE	7		// wimpier MG in teamplay
+#define SPIRAL_SIZE		12
 
-void Bullet_Fire (gentity_t *ent, float spread, int damage, int mod ) {
+void Bullet_Fire (gentity_t *ent, float spread, int damage ) {
 	trace_t		tr;
 	vec3_t		end;
-#ifdef MISSIONPACK
+#if 1
 	vec3_t		impactpoint, bouncedir;
 #endif
-	float		r;
+	float		r, f, d;
 	float		u;
 	gentity_t	*tent;
 	gentity_t	*traceEnt;
 	int			i, passent;
 
+	vec3_t		forward, right, up;
+
+	AngleVectors (ent->client->ps.viewangles, forward, right, up);
+	CalcMuzzlePoint ( ent, forward, right, up, muzzle );
+	ent->client->accuracy_shots++;
+	f = ((float)(ent->client->accuracy_shots % SPIRAL_SIZE)) / SPIRAL_SIZE; // 0 >= f >= 1
+	d = (f+(1/SPIRAL_SIZE)) * 2.0 * M_PI;
+
 	damage *= s_quadFactor;
 
-	r = random() * M_PI * 2.0f;
-	u = sin(r) * crandom() * spread * 16;
-	r = cos(r) * crandom() * spread * 16;
-	VectorMA (muzzle, 8192*16, forward, end);
+	//Com_Printf("f: %f, d: %f\n, a: %i", f, d, ent->client->accuracy_shots);
+
+	u = sin(d) * (f * spread);
+	r = cos(d) * (f * spread);
+
+	//Com_Printf("end1 : [%f, %f, %f]\n", end[0], end[1], end[2]);
+
+	VectorMA (muzzle, 8192, forward, end);
+
+	//Com_Printf("end2 : [%f, %f, %f]\n", end[0], end[1], end[2]);
+	//Com_Printf("right : [%f, %f, %f]\n", right[0], right[1], right[2]);
 	VectorMA (end, r, right, end);
+
+	//Com_Printf("end3 : [%f, %f, %f]\n", end[0], end[1], end[2]);
+	//Com_Printf("up : [%f, %f, %f]\n", up[0], up[1], up[2]);
+
 	VectorMA (end, u, up, end);
+
+	//Com_Printf("end4 : [%f, %f, %f]\n", end[0], end[1], end[2]);
 
 	passent = ent->s.number;
 	for (i = 0; i < 10; i++) {
@@ -209,7 +359,7 @@ void Bullet_Fire (gentity_t *ent, float spread, int damage, int mod ) {
 		tent->s.otherEntityNum = ent->s.number;
 
 		if ( traceEnt->takedamage) {
-#ifdef MISSIONPACK
+#if 1
 			if ( traceEnt->client && traceEnt->client->invulnerabilityTime > level.time ) {
 				if (G_InvulnerabilityEffect( traceEnt, forward, tr.endpos, impactpoint, bouncedir )) {
 					G_BounceProjectile( muzzle, impactpoint, bouncedir, end );
@@ -226,8 +376,8 @@ void Bullet_Fire (gentity_t *ent, float spread, int damage, int mod ) {
 			else {
 #endif
 				G_Damage( traceEnt, ent, ent, forward, tr.endpos,
-					damage, 0, mod);
-#ifdef MISSIONPACK
+					damage, 0, MOD_MACHINEGUN);
+#if 1
 			}
 #endif
 		}
@@ -265,13 +415,13 @@ SHOTGUN
 
 // DEFAULT_SHOTGUN_SPREAD and DEFAULT_SHOTGUN_COUNT	are in bg_public.h, because
 // client predicts same spreads
-#define	DEFAULT_SHOTGUN_DAMAGE	10
+#define	DEFAULT_SHOTGUN_DAMAGE	9
 
 qboolean ShotgunPellet( vec3_t start, vec3_t end, gentity_t *ent ) {
 	trace_t		tr;
 	int			damage, i, passent;
 	gentity_t	*traceEnt;
-#ifdef MISSIONPACK
+#if 1
 	vec3_t		impactpoint, bouncedir;
 #endif
 	vec3_t		tr_start, tr_end;
@@ -290,7 +440,7 @@ qboolean ShotgunPellet( vec3_t start, vec3_t end, gentity_t *ent ) {
 
 		if ( traceEnt->takedamage) {
 			damage = DEFAULT_SHOTGUN_DAMAGE * s_quadFactor;
-#ifdef MISSIONPACK
+#if 1
 			if ( traceEnt->client && traceEnt->client->invulnerabilityTime > level.time ) {
 				if (G_InvulnerabilityEffect( traceEnt, forward, tr.endpos, impactpoint, bouncedir )) {
 					G_BounceProjectile( tr_start, impactpoint, bouncedir, tr_end );
@@ -325,8 +475,8 @@ qboolean ShotgunPellet( vec3_t start, vec3_t end, gentity_t *ent ) {
 
 // this should match CG_ShotgunPattern
 void ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, gentity_t *ent ) {
-	int			i;
-	float		r, u;
+	int			i, n, c;
+	float		r, u, d;
 	vec3_t		end;
 	vec3_t		forward, right, up;
 	qboolean	hitClient = qfalse;
@@ -336,12 +486,33 @@ void ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, gentity_t *ent ) {
 	VectorNormalize2( origin2, forward );
 	PerpendicularVector( right, forward );
 	CrossProduct( forward, right, up );
-
+	n = DEFAULT_SHOTGUN_COUNT;
+	d = DEFAULT_SHOTGUN_SPREAD / 2;
+	c = 3;
+	while (n > 0) {
+		float stepSize = (2 * M_PI) / c;
+		float step;
+		for (step = -M_PI; step < M_PI && n > 0; step += stepSize) {
+			r = cos(step) * d;
+			u = sin(step) * d;
+			VectorMA( origin, 8192, forward, end);
+			VectorMA (end, r, right, end);
+			VectorMA (end, u, up, end);
+			if( ShotgunPellet( origin, end, ent ) && !hitClient ) {
+				hitClient = qtrue;
+				ent->client->accuracy_hits++;
+			}
+			n--;
+		}
+		d += DEFAULT_SHOTGUN_SPREAD / 2;
+		c += 4;
+	}
+	/*
 	// generate the "random" spread pattern
 	for ( i = 0 ; i < DEFAULT_SHOTGUN_COUNT ; i++ ) {
-		r = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD * 16;
-		u = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD * 16;
-		VectorMA( origin, 8192 * 16, forward, end);
+		r = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD;  // CPM
+		u = Q_crandom( &seed ) * DEFAULT_SHOTGUN_SPREAD;  // CPM
+		VectorMA( origin, 8192, forward, end);
 		VectorMA (end, r, right, end);
 		VectorMA (end, u, up, end);
 		if( ShotgunPellet( origin, end, ent ) && !hitClient ) {
@@ -349,6 +520,7 @@ void ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, gentity_t *ent ) {
 			ent->client->accuracy_hits++;
 		}
 	}
+	*/
 }
 
 
@@ -359,7 +531,7 @@ void weapon_supershotgun_fire (gentity_t *ent) {
 	tent = G_TempEntity( muzzle, EV_SHOTGUN );
 	VectorScale( forward, 4096, tent->s.origin2 );
 	SnapVector( tent->s.origin2 );
-	tent->s.eventParm = rand() & 255;		// seed for spread pattern
+	tent->s.eventParm = 255;		// seed for spread pattern
 	tent->s.otherEntityNum = ent->s.number;
 
 	ShotgunPattern( tent->s.pos.trBase, tent->s.origin2, tent->s.eventParm, ent );
@@ -442,9 +614,6 @@ weapon_railgun_fire
 #define	MAX_RAIL_HITS	4
 void weapon_railgun_fire (gentity_t *ent) {
 	vec3_t		end;
-#ifdef MISSIONPACK
-	vec3_t impactpoint, bouncedir;
-#endif
 	trace_t		trace;
 	gentity_t	*tent;
 	gentity_t	*traceEnt;
@@ -455,7 +624,14 @@ void weapon_railgun_fire (gentity_t *ent) {
 	int			passent;
 	gentity_t	*unlinkedEntities[MAX_RAIL_HITS];
 
-	damage = 100 * s_quadFactor;
+	if (0) {
+		tent = fire_bfg (ent, muzzle, forward);
+		tent->damage *= s_quadFactor;
+		tent->splashDamage *= s_quadFactor;
+		return;
+	}
+
+	damage = 80 * s_quadFactor;
 
 	VectorMA (muzzle, 8192, forward, end);
 
@@ -470,39 +646,12 @@ void weapon_railgun_fire (gentity_t *ent) {
 		}
 		traceEnt = &g_entities[ trace.entityNum ];
 		if ( traceEnt->takedamage ) {
-#ifdef MISSIONPACK
-			if ( traceEnt->client && traceEnt->client->invulnerabilityTime > level.time ) {
-				if ( G_InvulnerabilityEffect( traceEnt, forward, trace.endpos, impactpoint, bouncedir ) ) {
-					G_BounceProjectile( muzzle, impactpoint, bouncedir, end );
-					// snap the endpos to integers to save net bandwidth, but nudged towards the line
-					SnapVectorTowards( trace.endpos, muzzle );
-					// send railgun beam effect
-					tent = G_TempEntity( trace.endpos, EV_RAILTRAIL );
-					// set player number for custom colors on the railtrail
-					tent->s.clientNum = ent->s.clientNum;
-					VectorCopy( muzzle, tent->s.origin2 );
-					// move origin a bit to come closer to the drawn gun muzzle
-					VectorMA( tent->s.origin2, 4, right, tent->s.origin2 );
-					VectorMA( tent->s.origin2, -1, up, tent->s.origin2 );
-					tent->s.eventParm = 255;	// don't make the explosion at the end
-					//
-					VectorCopy( impactpoint, muzzle );
-					// the player can hit him/herself with the bounced rail
-					passent = ENTITYNUM_NONE;
-				}
+
+			if( LogAccuracyHit( traceEnt, ent ) ) {
+				hits++;
 			}
-			else {
-				if( LogAccuracyHit( traceEnt, ent ) ) {
-					hits++;
-				}
-				G_Damage (traceEnt, ent, ent, forward, trace.endpos, damage, 0, MOD_RAILGUN);
-			}
-#else
-				if( LogAccuracyHit( traceEnt, ent ) ) {
-					hits++;
-				}
-				G_Damage (traceEnt, ent, ent, forward, trace.endpos, damage, 0, MOD_RAILGUN);
-#endif
+			G_Damage (traceEnt, ent, ent, forward, trace.endpos, damage, 0, MOD_RAILGUN);
+
 		}
 		if ( trace.contents & CONTENTS_SOLID ) {
 			break;		// we hit something solid enough to stop the beam
@@ -614,7 +763,7 @@ LIGHTNING GUN
 void Weapon_LightningFire( gentity_t *ent ) {
 	trace_t		tr;
 	vec3_t		end;
-#ifdef MISSIONPACK
+#if 1
 	vec3_t impactpoint, bouncedir;
 #endif
 	gentity_t	*traceEnt, *tent;
@@ -628,7 +777,7 @@ void Weapon_LightningFire( gentity_t *ent ) {
 
 		trap_Trace( &tr, muzzle, NULL, NULL, end, passent, MASK_SHOT );
 
-#ifdef MISSIONPACK
+#if 1
 		// if not the first trace (the lightning bounced of an invulnerability sphere)
 		if (i) {
 			// add bounced off lightning bolt temp entity
@@ -647,7 +796,7 @@ void Weapon_LightningFire( gentity_t *ent ) {
 		traceEnt = &g_entities[ tr.entityNum ];
 
 		if ( traceEnt->takedamage) {
-#ifdef MISSIONPACK
+#if 1
 			if ( traceEnt->client && traceEnt->client->invulnerabilityTime > level.time ) {
 				if (G_InvulnerabilityEffect( traceEnt, forward, tr.endpos, impactpoint, bouncedir )) {
 					G_BounceProjectile( muzzle, impactpoint, bouncedir, end );
@@ -690,7 +839,7 @@ void Weapon_LightningFire( gentity_t *ent ) {
 	}
 }
 
-#ifdef MISSIONPACK
+#if 1
 /*
 ======================================================================
 
@@ -817,7 +966,7 @@ void FireWeapon( gentity_t *ent ) {
 	} else {
 		s_quadFactor = 1;
 	}
-#ifdef MISSIONPACK
+#if 1
 	if( ent->client->persistantPowerup && ent->client->persistantPowerup->item && ent->client->persistantPowerup->item->giTag == PW_DOUBLER ) {
 		s_quadFactor *= 2;
 	}
@@ -825,7 +974,7 @@ void FireWeapon( gentity_t *ent ) {
 
 	// track shots taken for accuracy tracking.  Grapple is not a weapon and gauntet is just not tracked
 	if( ent->s.weapon != WP_GRAPPLING_HOOK && ent->s.weapon != WP_GAUNTLET ) {
-#ifdef MISSIONPACK
+#if 1
 		if( ent->s.weapon == WP_NAILGUN ) {
 			ent->client->accuracy_shots += NUM_NAILSHOTS;
 		} else {
@@ -854,9 +1003,9 @@ void FireWeapon( gentity_t *ent ) {
 		break;
 	case WP_MACHINEGUN:
 		if ( g_gametype.integer != GT_TEAM ) {
-			Bullet_Fire( ent, MACHINEGUN_SPREAD, MACHINEGUN_DAMAGE, MOD_MACHINEGUN );
+			Bullet_Fire( ent, MACHINEGUN_SPREAD, MACHINEGUN_DAMAGE );
 		} else {
-			Bullet_Fire( ent, MACHINEGUN_SPREAD, MACHINEGUN_TEAM_DAMAGE, MOD_MACHINEGUN );
+			Bullet_Fire( ent, MACHINEGUN_SPREAD, MACHINEGUN_TEAM_DAMAGE );
 		}
 		break;
 	case WP_GRENADE_LAUNCHER:
@@ -877,7 +1026,7 @@ void FireWeapon( gentity_t *ent ) {
 	case WP_GRAPPLING_HOOK:
 		Weapon_GrapplingHook_Fire( ent );
 		break;
-#ifdef MISSIONPACK
+#if 1
 	case WP_NAILGUN:
 		Weapon_Nailgun_Fire( ent );
 		break;
@@ -885,7 +1034,7 @@ void FireWeapon( gentity_t *ent ) {
 		weapon_proxlauncher_fire( ent );
 		break;
 	case WP_CHAINGUN:
-		Bullet_Fire( ent, CHAINGUN_SPREAD, CHAINGUN_DAMAGE, MOD_CHAINGUN );
+		Bullet_Fire( ent, CHAINGUN_SPREAD, MACHINEGUN_DAMAGE );
 		break;
 #endif
 	default:
@@ -895,7 +1044,7 @@ void FireWeapon( gentity_t *ent ) {
 }
 
 
-#ifdef MISSIONPACK
+#if 1
 
 /*
 ===============

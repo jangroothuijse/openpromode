@@ -24,8 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // executed by a key binding
 
 #include "cg_local.h"
-#ifdef MISSIONPACK
 #include "../ui/ui_shared.h"
+#if MISSIONPACK
 extern menuDef_t *menuScoreboard;
 #endif
 
@@ -36,12 +36,12 @@ void CG_TargetCommand_f( void ) {
 	char	test[4];
 
 	targetNum = CG_CrosshairPlayer();
-	if ( targetNum == -1 ) {
+	if (!targetNum ) {
 		return;
 	}
 
 	trap_Argv( 1, test, 4 );
-	trap_SendClientCommand( va( "gc %i %i", targetNum, atoi( test ) ) );
+	trap_SendConsoleCommand( va( "gc %i %i", targetNum, atoi( test ) ) );
 }
 
 
@@ -86,7 +86,7 @@ static void CG_Viewpos_f (void) {
 
 static void CG_ScoresDown_f( void ) {
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		CG_BuildSpectatorString();
 #endif
 	if ( cg.scoresRequestTime + 2000 < cg.time ) {
@@ -115,7 +115,7 @@ static void CG_ScoresUp_f( void ) {
 	}
 }
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 extern menuDef_t *menuScoreboard;
 void Menu_Reset( void );			// FIXME: add to right include file
 
@@ -210,7 +210,6 @@ static void CG_TellAttacker_f( void ) {
 	trap_SendClientCommand( command );
 }
 
-#ifdef MISSIONPACK
 static void CG_VoiceTellTarget_f( void ) {
 	int		clientNum;
 	char	command[128];
@@ -241,6 +240,7 @@ static void CG_VoiceTellAttacker_f( void ) {
 	trap_SendClientCommand( command );
 }
 
+#if MISSIONPACK
 static void CG_NextTeamMember_f( void ) {
   CG_SelectNextPlayer();
 }
@@ -467,12 +467,12 @@ static consoleCommand_t	commands[] = {
 	{ "weapnext", CG_NextWeapon_f },
 	{ "weapprev", CG_PrevWeapon_f },
 	{ "weapon", CG_Weapon_f },
-	{ "tcmd", CG_TargetCommand_f },
 	{ "tell_target", CG_TellTarget_f },
 	{ "tell_attacker", CG_TellAttacker_f },
-#ifdef MISSIONPACK
 	{ "vtell_target", CG_VoiceTellTarget_f },
 	{ "vtell_attacker", CG_VoiceTellAttacker_f },
+	{ "tcmd", CG_TargetCommand_f },
+#if MISSIONPACK
 	{ "loadhud", CG_LoadHud_f },
 	{ "nextTeamMember", CG_NextTeamMember_f },
 	{ "prevTeamMember", CG_PrevTeamMember_f },
@@ -552,7 +552,6 @@ void CG_InitConsoleCommands( void ) {
 	trap_AddCommand ("say");
 	trap_AddCommand ("say_team");
 	trap_AddCommand ("tell");
-#ifdef MISSIONPACK
 	trap_AddCommand ("vsay");
 	trap_AddCommand ("vsay_team");
 	trap_AddCommand ("vtell");
@@ -560,16 +559,12 @@ void CG_InitConsoleCommands( void ) {
 	trap_AddCommand ("vosay");
 	trap_AddCommand ("vosay_team");
 	trap_AddCommand ("votell");
-#endif
 	trap_AddCommand ("give");
 	trap_AddCommand ("god");
 	trap_AddCommand ("notarget");
 	trap_AddCommand ("noclip");
-	trap_AddCommand ("where");
 	trap_AddCommand ("team");
 	trap_AddCommand ("follow");
-	trap_AddCommand ("follownext");
-	trap_AddCommand ("followprev");
 	trap_AddCommand ("levelshot");
 	trap_AddCommand ("addbot");
 	trap_AddCommand ("setviewpos");

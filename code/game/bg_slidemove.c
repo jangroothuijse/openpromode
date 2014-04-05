@@ -238,11 +238,15 @@ void PM_StepSlideMove( qboolean gravity ) {
 //	vec3_t		delta, delta2;
 	vec3_t		up, down;
 	float		stepSize;
+	qboolean	blocked;
+	float		scale;
+	qboolean	inAir;
 
 	VectorCopy (pm->ps->origin, start_o);
 	VectorCopy (pm->ps->velocity, start_v);
 
-	if ( PM_SlideMove( gravity ) == 0 ) {
+	blocked = PM_SlideMove( gravity );
+	if ( blocked == 0 ) {
 		return;		// we got exactly where we wanted to go first try	
 	}
 
@@ -251,11 +255,13 @@ void PM_StepSlideMove( qboolean gravity ) {
 	pm->trace (&trace, start_o, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
 	VectorSet(up, 0, 0, 1);
 	// never step up when you still have up velocity
-	if ( pm->ps->velocity[2] > 0 && (trace.fraction == 1.0 ||
-										DotProduct(trace.plane.normal, up) < 0.7)) {
-		return;
-	}
+	inAir = (pm->ps->velocity[2] > 0) &&
+			(trace.fraction == 1.0 || DotProduct(trace.plane.normal, up) < 0.7);
 
+	if (inAir && pm->cmd.upmove < 10 ) {
+			// in air and not holding jump, return to default behavior.
+			return;
+	}
 	//VectorCopy (pm->ps->origin, down_o);
 	//VectorCopy (pm->ps->velocity, down_v);
 
@@ -285,8 +291,18 @@ void PM_StepSlideMove( qboolean gravity ) {
 	if ( !trace.allsolid ) {
 		VectorCopy (trace.endpos, pm->ps->origin);
 	}
-	if ( trace.fraction < 1.0 ) {
-		PM_ClipVelocity( pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP );
+	if ( trace.fraction < 1.0) {
+		// Air step implementation
+		if (inAir && PM_CheckJump()) {
+			PM_AirMove(); return;
+		} else if (!inAir) {
+			PM_ClipVelocity( pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP );
+		} else {
+			// In air and not jumping: reset everything and return.
+			///VectorCopy (start_o, pm->ps->origin);
+			VectorCopy (start_v, pm->ps->velocity);
+			//pm->ps->origin[2] -= stepSize;
+		}
 	}
 
 #if 0
@@ -306,7 +322,7 @@ void PM_StepSlideMove( qboolean gravity ) {
 		float	delta;
 
 		delta = pm->ps->origin[2] - start_o[2];
-		if ( delta > 2 ) {
+		if ( delta > 2 ) { // smooth out transitions
 			if ( delta < 7 ) {
 				PM_AddEvent( EV_STEP_4 );
 			} else if ( delta < 11 ) {
@@ -317,6 +333,14 @@ void PM_StepSlideMove( qboolean gravity ) {
 				PM_AddEvent( EV_STEP_16 );
 			}
 		}
+
+		/*
+		if (!pml.groundPlane && blocked && pm->waterlevel < 2) {
+			scale = 1- 0.01*(pm->ps->origin[2] - start_o[2]);
+			pm->ps->velocity[0] = start_v[0] * scale;
+			pm->ps->velocity[1] = start_v[1] * scale;
+		}
+		 */
 		if ( pm->debugLevel ) {
 			Com_Printf("%i:stepped\n", c_pmove);
 		}

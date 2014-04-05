@@ -208,9 +208,11 @@ int Pickup_Holdable( gentity_t *ent, gentity_t *other ) {
 
 void Add_Ammo (gentity_t *ent, int weapon, int count)
 {
+	int max;
 	ent->client->ps.ammo[weapon] += count;
-	if ( ent->client->ps.ammo[weapon] > 200 ) {
-		ent->client->ps.ammo[weapon] = 200;
+	max = WeaponMaxAmmo(weapon);
+	if ( ent->client->ps.ammo[weapon] > max ) {
+		ent->client->ps.ammo[weapon] = max;
 	}
 }
 
@@ -280,7 +282,7 @@ int Pickup_Health (gentity_t *ent, gentity_t *other) {
 	int			quantity;
 
 	// small and mega healths will go over the max
-#ifdef MISSIONPACK
+#if 1
 	if( bg_itemlist[other->client->ps.stats[STAT_PERSISTANT_POWERUP]].giTag == PW_GUARD ) {
 		max = other->client->ps.stats[STAT_MAX_HEALTH];
 	}
@@ -315,27 +317,41 @@ int Pickup_Health (gentity_t *ent, gentity_t *other) {
 //======================================================================
 
 int Pickup_Armor( gentity_t *ent, gentity_t *other ) {
-#ifdef MISSIONPACK
-	int		upperBound;
 
-	other->client->ps.stats[STAT_ARMOR] += ent->item->quantity;
-
-	if( other->client && bg_itemlist[other->client->ps.stats[STAT_PERSISTANT_POWERUP]].giTag == PW_GUARD ) {
-		upperBound = other->client->ps.stats[STAT_MAX_HEALTH];
+	//other->client->ps.stats[STAT_ARMOR] += ent->item->quantity;
+	if (ent->item->quantity == 100) { // RA
+		// Red armor, minimum 150, add 100, max 200
+		if (other->client->ps.stats[STAT_ARMOR] < 50) {
+			other->client->ps.stats[STAT_ARMOR] = 150;
+		} else if (other->client->ps.stats[STAT_ARMOR] < 100) {
+			other->client->ps.stats[STAT_ARMOR] += 100;
+		} else {
+			other->client->ps.stats[STAT_ARMOR] = 200;
+		}
+		other->client->ps.stats[STAT_ARMORTYPE] = 2;
+	} else if (ent->item->quantity == 50) {
+		// Yellow armor, minimum 100, add 50 max 150
+		if (other->client->ps.stats[STAT_ARMOR] < 50) {
+			other->client->ps.stats[STAT_ARMOR] = 100;
+		} else if (other->client->ps.stats[STAT_ARMOR] < 100) {
+			other->client->ps.stats[STAT_ARMOR] += 50;
+		} else {
+			other->client->ps.stats[STAT_ARMOR] = 150;
+		}
+		other->client->ps.stats[STAT_ARMORTYPE] = 1;
+	} else if (ent->item->quantity == 25) {
+		// green armor should only be grabbed if armor < 100
+		other->client->ps.stats[STAT_ARMOR] += 50;
+		if (other->client->ps.stats[STAT_ARMOR] > 100) {
+			other->client->ps.stats[STAT_ARMOR] = 100;
+		}
+	} else {
+		// Shard
+		other->client->ps.stats[STAT_ARMOR] += ent->item->quantity;
+		if (other->client->ps.stats[STAT_ARMOR] > 200) {
+			other->client->ps.stats[STAT_ARMOR] = 200;
+		}
 	}
-	else {
-		upperBound = other->client->ps.stats[STAT_MAX_HEALTH] * 2;
-	}
-
-	if ( other->client->ps.stats[STAT_ARMOR] > upperBound ) {
-		other->client->ps.stats[STAT_ARMOR] = upperBound;
-	}
-#else
-	other->client->ps.stats[STAT_ARMOR] += ent->item->quantity;
-	if ( other->client->ps.stats[STAT_ARMOR] > other->client->ps.stats[STAT_MAX_HEALTH] * 2 ) {
-		other->client->ps.stats[STAT_ARMOR] = other->client->ps.stats[STAT_MAX_HEALTH] * 2;
-	}
-#endif
 
 	return RESPAWN_ARMOR;
 }
@@ -573,6 +589,10 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 	dropped->item = item;
 	VectorSet (dropped->r.mins, -ITEM_RADIUS, -ITEM_RADIUS, -ITEM_RADIUS);
 	VectorSet (dropped->r.maxs, ITEM_RADIUS, ITEM_RADIUS, ITEM_RADIUS);
+
+	// project higher...makes stuff easier to pick up while jumping..
+	//dropped->r.maxs[2] += 200; Doens't work?
+
 	dropped->r.contents = CONTENTS_TRIGGER;
 
 	dropped->touch = Touch_Item;
@@ -583,7 +603,7 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 	VectorCopy( velocity, dropped->s.pos.trDelta );
 
 	dropped->s.eFlags |= EF_BOUNCE_HALF;
-#ifdef MISSIONPACK
+#if 1
 	if ((g_gametype.integer == GT_CTF || g_gametype.integer == GT_1FCTF)			&& item->giType == IT_TEAM) { // Special case for CTF flags
 #else
 	if (g_gametype.integer == GT_CTF && item->giType == IT_TEAM) { // Special case for CTF flags
@@ -653,6 +673,7 @@ void FinishSpawningItem( gentity_t *ent ) {
 
 	VectorSet( ent->r.mins, -ITEM_RADIUS, -ITEM_RADIUS, -ITEM_RADIUS );
 	VectorSet( ent->r.maxs, ITEM_RADIUS, ITEM_RADIUS, ITEM_RADIUS );
+	// ent->r.maxs[2] += 40; Nope, does not work...
 
 	ent->s.eType = ET_ITEM;
 	ent->s.modelindex = ent->item - bg_itemlist;		// store item number in modelindex
@@ -660,7 +681,7 @@ void FinishSpawningItem( gentity_t *ent ) {
 
 	ent->r.contents = CONTENTS_TRIGGER;
 	ent->touch = Touch_Item;
-	// using an item causes it to respawn
+	// useing an item causes it to respawn
 	ent->use = Use_Item;
 
 	if ( ent->spawnflags & 1 ) {
@@ -718,9 +739,9 @@ void G_CheckTeamItems( void ) {
 	// Set up team stuff
 	Team_InitGame();
 
+
 	if( g_gametype.integer == GT_CTF ) {
 		gitem_t	*item;
-
 		// check for the two flags
 		item = BG_FindItem( "Red Flag" );
 		if ( !item || !itemRegistered[ item - bg_itemlist ] ) {
@@ -731,7 +752,7 @@ void G_CheckTeamItems( void ) {
 			G_Printf( S_COLOR_YELLOW "WARNING: No team_CTF_blueflag in map\n" );
 		}
 	}
-#ifdef MISSIONPACK
+#if 1
 	if( g_gametype.integer == GT_1FCTF ) {
 		gitem_t	*item;
 
@@ -803,7 +824,7 @@ void ClearRegisteredItems( void ) {
 	// players always start with the base weapon
 	RegisterItem( BG_FindItemForWeapon( WP_MACHINEGUN ) );
 	RegisterItem( BG_FindItemForWeapon( WP_GAUNTLET ) );
-#ifdef MISSIONPACK
+#if 1
 	if( g_gametype.integer == GT_HARVESTER ) {
 		RegisterItem( BG_FindItem( "Red Cube" ) );
 		RegisterItem( BG_FindItem( "Blue Cube" ) );
@@ -898,7 +919,7 @@ void G_SpawnItem (gentity_t *ent, gitem_t *item) {
 		G_SpawnFloat( "noglobalsound", "0", &ent->speed);
 	}
 
-#ifdef MISSIONPACK
+#if 0
 	if ( item->giType == IT_PERSISTANT_POWERUP ) {
 		ent->s.generic1 = ent->spawnflags;
 	}
@@ -953,8 +974,8 @@ void G_RunItem( gentity_t *ent ) {
 	int			contents;
 	int			mask;
 
-	// if its groundentity has been set to none, it may have been pushed off an edge
-	if ( ent->s.groundEntityNum == ENTITYNUM_NONE ) {
+	// if groundentity has been set to -1, it may have been pushed off an edge
+	if ( ent->s.groundEntityNum == -1 ) {
 		if ( ent->s.pos.trType != TR_GRAVITY ) {
 			ent->s.pos.trType = TR_GRAVITY;
 			ent->s.pos.trTime = level.time;

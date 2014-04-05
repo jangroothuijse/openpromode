@@ -149,7 +149,7 @@ static void CG_AddTestModel (void) {
 		return;
 	}
 
-	// if testing a gun, set the origin relative to the view origin
+	// if testing a gun, set the origin reletive to the view origin
 	if ( cg.testGun ) {
 		VectorCopy( cg.refdef.vieworg, cg.testModelEntity.origin );
 		VectorCopy( cg.refdef.viewaxis[0], cg.testModelEntity.axis[0] );
@@ -234,7 +234,7 @@ static void CG_OffsetThirdPersonView( void ) {
 	VectorCopy( cg.refdefViewAngles, focusAngles );
 
 	// if dead, look at killer
-	if ( cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 ) {
+	if ( 0 && cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 ) {
 		focusAngles[YAW] = cg.predictedPlayerState.stats[STAT_DEAD_YAW];
 		cg.refdefViewAngles[YAW] = cg.predictedPlayerState.stats[STAT_DEAD_YAW];
 	}
@@ -269,7 +269,7 @@ static void CG_OffsetThirdPersonView( void ) {
 			VectorCopy( trace.endpos, view );
 			view[2] += (1.0 - trace.fraction) * 32;
 			// try another trace to this position, because a tunnel may have the ceiling
-			// close enough that this is poking out
+			// close enogh that this is poking out
 
 			CG_Trace( &trace, cg.refdef.vieworg, mins, maxs, view, cg.predictedPlayerState.clientNum, MASK_SOLID );
 			VectorCopy( trace.endpos, view );
@@ -327,7 +327,7 @@ static void CG_OffsetFirstPersonView( void ) {
 	angles = cg.refdefViewAngles;
 
 	// if dead, fix the angle and don't add any kick
-	if ( cg.snap->ps.stats[STAT_HEALTH] <= 0 ) {
+	if ( 0 && cg.snap->ps.stats[STAT_HEALTH] <= 0 ) {
 		angles[ROLL] = 40;
 		angles[PITCH] = -15;
 		angles[YAW] = cg.snap->ps.stats[STAT_DEAD_YAW];
@@ -677,7 +677,7 @@ static int CG_CalcViewValues( void ) {
 		CG_OffsetFirstPersonView();
 	}
 
-	// position eye relative to origin
+	// position eye reletive to origin
 	AnglesToAxis( cg.refdefViewAngles, cg.refdef.viewaxis );
 
 	if ( cg.hyperspace ) {
@@ -818,10 +818,8 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	// add buffered sounds
 	CG_PlayBufferedSounds();
 
-#ifdef MISSIONPACK
 	// play buffered voice chats
 	CG_PlayBufferedVoiceChats();
-#endif
 
 	// finish up the rest of the refdef
 	if ( cg.testModelEntity.hModel ) {

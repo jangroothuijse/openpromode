@@ -400,7 +400,7 @@ just like the existing corpse to leave behind.
 =============
 */
 void CopyToBodyQue( gentity_t *ent ) {
-#ifdef MISSIONPACK
+#if 1
 	gentity_t	*e;
 	int i;
 #endif
@@ -421,12 +421,12 @@ void CopyToBodyQue( gentity_t *ent ) {
 
 	body->s = ent->s;
 	body->s.eFlags = EF_DEAD;		// clear EF_TALK, etc
-#ifdef MISSIONPACK
+#if 1
 	if ( ent->s.eFlags & EF_KAMIKAZE ) {
 		body->s.eFlags |= EF_KAMIKAZE;
 
 		// check if there is a kamikaze timer around for this owner
-		for (i = 0; i < level.num_entities; i++) {
+		for (i = 0; i < MAX_GENTITIES; i++) {
 			e = &g_entities[i];
 			if (!e->inuse)
 				continue;
@@ -540,7 +540,7 @@ TeamCount
 Returns number of players on a team
 ================
 */
-int TeamCount( int ignoreClientNum, team_t team ) {
+team_t TeamCount( int ignoreClientNum, int team ) {
 	int		i;
 	int		count = 0;
 
@@ -630,7 +630,7 @@ static void ForceClientSkin( gclient_t *client, char *model, const char *skin ) 
 
 /*
 ===========
-ClientCleanName
+ClientCheckName
 ============
 */
 static void ClientCleanName(const char *in, char *out, int outSize)
@@ -722,8 +722,6 @@ void ClientUserinfoChanged( int clientNum ) {
 	// check for malformed or illegal info strings
 	if ( !Info_Validate(userinfo) ) {
 		strcpy (userinfo, "\\name\\badinfo");
-		// don't keep those clients and userinfo
-		trap_DropClient(clientNum, "Invalid userinfo");
 	}
 
 	// check for local client
@@ -759,7 +757,7 @@ void ClientUserinfoChanged( int clientNum ) {
 	}
 
 	// set max health
-#ifdef MISSIONPACK
+#if 1
 	if (client->ps.powerups[PW_GUARD]) {
 		client->pers.maxHealth = 200;
 	} else {
@@ -789,14 +787,32 @@ void ClientUserinfoChanged( int clientNum ) {
 
 	// bots set their team a few frames later
 	if (g_gametype.integer >= GT_TEAM && g_entities[clientNum].r.svFlags & SVF_BOT) {
+
 		s = Info_ValueForKey( userinfo, "team" );
-		if ( !Q_stricmp( s, "red" ) || !Q_stricmp( s, "r" ) ) {
-			team = TEAM_RED;
-		} else if ( !Q_stricmp( s, "blue" ) || !Q_stricmp( s, "b" ) ) {
-			team = TEAM_BLUE;
+		if (g_gametype.integer >= GT_MULTI_TEAM) {
+			if (!Q_stricmp(s,"blue")) {
+				team = TEAM_BLUE;
+			} else if (!Q_stricmp(s,"green")) {
+				team = TEAM_GREEN;
+			} else if (!Q_stricmp(s,"yellow")) {
+				team = TEAM_YELLOW;
+			} else if (!Q_stricmp(s, "orange")) {
+				team = TEAM_ORANGE;
+			} else if (!Q_stricmp(s,"white")) {
+				team = TEAM_WHITE;
+			} else {
+				team = TEAM_RED;
+			}
 		} else {
-			// pick the team with the least number of players
-			team = PickTeam( clientNum );
+
+			if ( !Q_stricmp( s, "red" ) || !Q_stricmp( s, "r" ) ) {
+				team = TEAM_RED;
+			} else if ( !Q_stricmp( s, "blue" ) || !Q_stricmp( s, "b" ) ) {
+				team = TEAM_BLUE;
+			} else {
+				// pick the team with the least number of players
+				team = PickTeam( clientNum );
+			}
 		}
 	}
 	else {
@@ -824,7 +840,7 @@ void ClientUserinfoChanged( int clientNum ) {
 	}
 */
 
-#ifdef MISSIONPACK
+#if 1
 	if (g_gametype.integer >= GT_TEAM) {
 		client->pers.teamInfo = qtrue;
 	} else {
@@ -940,12 +956,7 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 			return "Invalid password";
 		}
 	}
-	// if a player reconnects quickly after a disconnect, the client disconnect may never be called, thus flag can get lost in the ether
-	if (ent->inuse) {
-		G_LogPrintf("Forcing disconnect on active client: %i\n", clientNum);
-		// so lets just fix up anything that should happen on a disconnect
-		ClientDisconnect(clientNum);
-	}
+
 	// they can connect
 	ent->client = level.clients + clientNum;
 	client = ent->client;
@@ -1024,6 +1035,7 @@ void ClientBegin( int clientNum ) {
 	client->pers.connected = CON_CONNECTED;
 	client->pers.enterTime = level.time;
 	client->pers.teamState.state = TEAM_BEGIN;
+
 
 	// save eflags around this, because changing teams will
 	// cause this to happen with a valid entity, and we
@@ -1155,10 +1167,11 @@ void ClientSpawn(gentity_t *ent) {
 
 	trap_GetUserinfo( index, userinfo, sizeof(userinfo) );
 	// set max health
-	client->pers.maxHealth = atoi( Info_ValueForKey( userinfo, "handicap" ) );
+	client->pers.maxHealth = 100;
+	/*atoi( Info_ValueForKey( userinfo, "handicap" ) );
 	if ( client->pers.maxHealth < 1 || client->pers.maxHealth > 100 ) {
 		client->pers.maxHealth = 100;
-	}
+	}*/
 	// clear entity values
 	client->ps.stats[STAT_MAX_HEALTH] = client->pers.maxHealth;
 	client->ps.eFlags = flags;
@@ -1184,7 +1197,7 @@ void ClientSpawn(gentity_t *ent) {
 	if ( g_gametype.integer == GT_TEAM ) {
 		client->ps.ammo[WP_MACHINEGUN] = 50;
 	} else {
-		client->ps.ammo[WP_MACHINEGUN] = 100;
+		client->ps.ammo[WP_MACHINEGUN] = 50;
 	}
 
 	client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_GAUNTLET );
@@ -1192,7 +1205,11 @@ void ClientSpawn(gentity_t *ent) {
 	client->ps.ammo[WP_GRAPPLING_HOOK] = -1;
 
 	// health will count down towards max_health
-	ent->health = client->ps.stats[STAT_HEALTH] = client->ps.stats[STAT_MAX_HEALTH] + 25;
+	if (g_gametype.integer == GT_ELIMINATION || g_gametype.integer == GT_FT) {
+		ent->health = client->ps.stats[STAT_HEALTH] = 2 * client->ps.stats[STAT_MAX_HEALTH];
+	} else {
+		ent->health = client->ps.stats[STAT_HEALTH] = client->ps.stats[STAT_MAX_HEALTH] + 25;
+	}
 
 	G_SetOrigin( ent, spawn_origin );
 	VectorCopy( spawn_origin, client->ps.origin );
@@ -1207,6 +1224,7 @@ void ClientSpawn(gentity_t *ent) {
 	client->ps.pm_time = 100;
 
 	client->respawnTime = level.time;
+
 	client->inactivityTime = level.time + g_inactivity.integer * 1000;
 	client->latched_buttons = 0;
 
@@ -1247,12 +1265,11 @@ void ClientSpawn(gentity_t *ent) {
 	// initialize animations and other things
 	client->ps.commandTime = level.time - 100;
 	ent->client->pers.cmd.serverTime = level.time;
+
+	client->sess.spectatorState = SPECTATOR_NOT;
 	ClientThink( ent-g_entities );
-	// run the presend to set anything else, follow spectators wait
-	// until all clients have been reconnected after map_restart
-	if ( ent->client->sess.spectatorState != SPECTATOR_FOLLOW ) {
-		ClientEndFrame( ent );
-	}
+	// run the presend to set anything else
+	ClientEndFrame( ent );
 
 	// clear entity state values
 	BG_PlayerStateToEntityState( &client->ps, &ent->s, qtrue );
@@ -1281,7 +1298,7 @@ void ClientDisconnect( int clientNum ) {
 	G_RemoveQueuedBotBegin( clientNum );
 
 	ent = g_entities + clientNum;
-	if (!ent->client || ent->client->pers.connected == CON_DISCONNECTED) {
+	if ( !ent->client ) {
 		return;
 	}
 
@@ -1303,7 +1320,7 @@ void ClientDisconnect( int clientNum ) {
 		// They don't get to take powerups with them!
 		// Especially important for stuff like CTF flags
 		TossClientItems( ent );
-#ifdef MISSIONPACK
+#if 1
 		TossClientPersistantPowerups( ent );
 		if( g_gametype.integer == GT_HARVESTER ) {
 			TossClientCubes( ent );

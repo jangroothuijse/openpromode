@@ -79,6 +79,20 @@ TELEPORTERS
 void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	gentity_t	*tent;
 	qboolean noAngles;
+	float horizontalMagnitude;
+	vec3_t dir;
+	vec3_t 		viewAngles;
+	float		viewHPlaneAngleDelta;
+
+	// on some maps, the players can loose mommentum just before entering
+	// the teleporter, this is extremely annoying behavior, brought on
+	// by framed teleporters;
+	// oldVelocity fixes this behavior.
+
+	VectorCopy( player->client->oldVelocity, player->client->ps.velocity );
+
+	horizontalMagnitude = sqrt(((player->client->ps.velocity[0]) * (player->client->ps.velocity[0]))
+			 + ((player->client->ps.velocity[1]) * (player->client->ps.velocity[1])));
 
 	noAngles = (angles[0] > 999999.0);
 	// use temp events at source and destination to prevent the effect
@@ -95,15 +109,26 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	trap_UnlinkEntity (player);
 
 	VectorCopy ( origin, player->client->ps.origin );
-	player->client->ps.origin[2] += 1;
+	//player->client->ps.origin[2] += 1;
+
 	if (!noAngles) {
-	// spit the player out
-	AngleVectors( angles, player->client->ps.velocity, NULL, NULL );
-	VectorScale( player->client->ps.velocity, 400, player->client->ps.velocity );
-	player->client->ps.pm_time = 160;		// hold time
-	player->client->ps.pm_flags |= PMF_TIME_KNOCKBACK;
-	// set angles
-	SetClientViewAngle(player, angles);
+		// spit the player out
+		AngleVectors( angles, dir, NULL, NULL );
+		viewHPlaneAngleDelta = AngleSubtract(
+								(atan2(player->client->ps.velocity[1], player->client->ps.velocity[0]) * 180/M_PI),
+								player->client->ps.viewangles[1]);
+		player->client->ps.velocity[0] = dir[0] * horizontalMagnitude;
+		player->client->ps.velocity[1] = dir[1] * horizontalMagnitude;
+		player->client->ps.pm_time = 160;		// hold time
+		player->client->ps.pm_flags |= PMF_TIME_KNOCKBACK;
+
+		// this is the height of the viewport.
+		viewAngles[0] = player->client->ps.viewangles[0];
+		// view angle is (angle - delta between viewangle and velicity dir) % 180
+		viewAngles[1] = AngleSubtract(angles[1], viewHPlaneAngleDelta);
+		viewAngles[2] = 0;
+		// set angles
+		SetClientViewAngle(player, viewAngles);
 	}
 	// toggle the teleport bit so the client knows to not lerp
 	player->client->ps.eFlags ^= EF_TELEPORT_BIT;
@@ -337,7 +362,7 @@ void SP_shooter_grenade( gentity_t *ent ) {
 }
 
 
-#ifdef MISSIONPACK
+#if 1
 static void PortalDie (gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod) {
 	G_FreeEntity( self );
 	//FIXME do something more interesting

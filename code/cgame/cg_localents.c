@@ -74,7 +74,7 @@ void CG_FreeLocalEntity( localEntity_t *le ) {
 ===================
 CG_AllocLocalEntity
 
-Will always succeed, even if it requires freeing an old active entity
+Will allways succeed, even if it requires freeing an old active entity
 ===================
 */
 localEntity_t	*CG_AllocLocalEntity( void ) {
@@ -536,7 +536,7 @@ static void CG_AddSpriteExplosion( localEntity_t *le ) {
 }
 
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 /*
 ====================
 CG_AddKamikaze
@@ -860,7 +860,7 @@ void CG_AddLocalEntities( void ) {
 			CG_AddScorePlum( le );
 			break;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		case LE_KAMIKAZE:
 			CG_AddKamikaze( le );
 			break;

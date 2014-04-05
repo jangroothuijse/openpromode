@@ -34,7 +34,7 @@ extern displayContextDef_t cgDC;
 
 //static int sortedTeamPlayers[TEAM_MAXOVERLAY];
 //static int numSortedTeamPlayers;
-int drawTeamOverlayModificationCount = -1;
+//int drawTeamOverlayModificationCount = -1;
 
 //static char systemChat[256];
 //static char teamChat1[256];
@@ -1828,6 +1828,22 @@ void CG_GetTeamColor(vec4_t *color) {
     (*color)[0] = (*color)[1] = 0.0f;
     (*color)[2] = 1.0f;
     (*color)[3] = 0.25f;
+  } else if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_GREEN) {
+      (*color)[0] = 0.0f;
+      (*color)[2] = (*color)[1] = 1.0f;
+      (*color)[3] = 0.25f;
+  } else if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_YELLOW) {
+      (*color)[2] = 0.0f;
+      (*color)[0] = (*color)[1] = 1.0f;
+      (*color)[3] = 0.25f;
+  } else if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_ORANGE) {
+      (*color)[0] = 1.0f;
+      (*color)[1] = 0.5f;
+      (*color)[2] = 0.0f;
+      (*color)[3] = 0.25f;
+  } else if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_WHITE) {
+      (*color)[0] = (*color)[1] = (*color)[2] = 1.0f;
+      (*color)[3] = 0.25f;
   } else {
     (*color)[0] = (*color)[2] = 0.0f;
     (*color)[1] = 0.17f;

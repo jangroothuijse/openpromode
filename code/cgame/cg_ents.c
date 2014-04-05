@@ -332,12 +332,12 @@ static void CG_Item( centity_t *cent ) {
 		VectorScale( ent.axis[1], 1.5, ent.axis[1] );
 		VectorScale( ent.axis[2], 1.5, ent.axis[2] );
 		ent.nonNormalizedAxes = qtrue;
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		trap_S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin, cgs.media.weaponHoverSound );
 #endif
 	}
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if ( item->giType == IT_HOLDABLE && item->giTag == HI_KAMIKAZE ) {
 		VectorScale( ent.axis[0], 2, ent.axis[0] );
 		VectorScale( ent.axis[1], 2, ent.axis[1] );
@@ -349,7 +349,7 @@ static void CG_Item( centity_t *cent ) {
 	// add to refresh list
 	trap_R_AddRefEntityToScene(&ent);
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if ( item->giType == IT_WEAPON && wi->barrelModel ) {
 		refEntity_t	barrel;
 
@@ -479,7 +479,7 @@ static void CG_Missile( centity_t *cent ) {
 	ent.hModel = weapon->missileModel;
 	ent.renderfx = weapon->missileRenderfx | RF_NOSHADOW;
 
-#ifdef MISSIONPACK
+#if MISSIONPACK
 	if ( cent->currentState.weapon == WP_PROX_LAUNCHER ) {
 		if (s1->generic1 == TEAM_BLUE) {
 			ent.hModel = cgs.media.blueProxMine;
@@ -496,7 +496,7 @@ static void CG_Missile( centity_t *cent ) {
 	if ( s1->pos.trType != TR_STATIONARY ) {
 		RotateAroundDirection( ent.axis, cg.time / 4 );
 	} else {
-#ifdef MISSIONPACK
+#if MISSIONPACK
 		if ( s1->weapon == WP_PROX_LAUNCHER ) {
 			AnglesToAxis( cent->lerpAngles, ent.axis );
 		}
@@ -668,21 +668,20 @@ CG_AdjustPositionForMover
 Also called by client movement prediction code
 =========================
 */
-void CG_AdjustPositionForMover(const vec3_t in, int moverNum, int fromTime, int toTime, vec3_t out, vec3_t angles_in, vec3_t angles_out) {
+void CG_AdjustPositionForMover( const vec3_t in, int moverNum, int fromTime, int toTime, vec3_t out ) {
 	centity_t	*cent;
 	vec3_t	oldOrigin, origin, deltaOrigin;
-	vec3_t	oldAngles, angles, deltaAngles;
+	vec3_t	oldAngles, angles;
+	//vec3_t	deltaAngles;
 
 	if ( moverNum <= 0 || moverNum >= ENTITYNUM_MAX_NORMAL ) {
 		VectorCopy( in, out );
-		VectorCopy(angles_in, angles_out);
 		return;
 	}
 
 	cent = &cg_entities[ moverNum ];
 	if ( cent->currentState.eType != ET_MOVER ) {
 		VectorCopy( in, out );
-		VectorCopy(angles_in, angles_out);
 		return;
 	}
 
@@ -693,10 +692,10 @@ void CG_AdjustPositionForMover(const vec3_t in, int moverNum, int fromTime, int 
 	BG_EvaluateTrajectory( &cent->currentState.apos, toTime, angles );
 
 	VectorSubtract( origin, oldOrigin, deltaOrigin );
-	VectorSubtract( angles, oldAngles, deltaAngles );
+	//VectorSubtract( angles, oldAngles, deltaAngles );
 
 	VectorAdd( in, deltaOrigin, out );
-	VectorAdd( angles_in, deltaAngles, angles_out );
+
 	// FIXME: origin change when on a rotating object
 }
 
@@ -774,7 +773,7 @@ static void CG_CalcEntityLerpPositions( centity_t *cent ) {
 	// player state
 	if ( cent != &cg.predictedPlayerEntity ) {
 		CG_AdjustPositionForMover( cent->lerpOrigin, cent->currentState.groundEntityNum, 
-		cg.snap->serverTime, cg.time, cent->lerpOrigin, cent->lerpAngles, cent->lerpAngles);
+		cg.snap->serverTime, cg.time, cent->lerpOrigin );
 	}
 }
 
@@ -785,15 +784,15 @@ CG_TeamBase
 */
 static void CG_TeamBase( centity_t *cent ) {
 	refEntity_t model;
-#ifdef MISSIONPACK
+//#if MISSIONPACK
 	vec3_t angles;
 	int t, h;
 	float c;
 
 	if ( cgs.gametype == GT_CTF || cgs.gametype == GT_1FCTF ) {
-#else
-	if ( cgs.gametype == GT_CTF) {
-#endif
+//#else
+//	if ( cgs.gametype == GT_CTF) {
+//#endif
 		// show the flag base
 		memset(&model, 0, sizeof(model));
 		model.reType = RT_MODEL;
@@ -811,7 +810,7 @@ static void CG_TeamBase( centity_t *cent ) {
 		}
 		trap_R_AddRefEntityToScene( &model );
 	}
-#ifdef MISSIONPACK
+#if 1
 	else if ( cgs.gametype == GT_OBELISK ) {
 		// show the obelisk
 		memset(&model, 0, sizeof(model));
@@ -951,7 +950,7 @@ static void CG_AddCEntity( centity_t *cent ) {
 
 	switch ( cent->currentState.eType ) {
 	default:
-		CG_Error( "Bad entity type: %i", cent->currentState.eType );
+		CG_Error( "Bad entity type: %i\n", cent->currentState.eType );
 		break;
 	case ET_INVISIBLE:
 	case ET_PUSH_TRIGGER:

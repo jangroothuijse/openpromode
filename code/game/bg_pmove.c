@@ -35,7 +35,7 @@ float	pm_stopspeed = 100.0f;
 float	pm_duckScale = 0.25f;
 float	pm_swimScale = 0.50f;
 
-float	pm_accelerate = 10.0f;
+float	pm_accelerate = 15.0f; // was 10 for VQ3
 float	pm_airaccelerate = 1.0f;
 float	pm_wateraccelerate = 4.0f;
 float	pm_flyaccelerate = 8.0f;
@@ -133,7 +133,6 @@ static void PM_ForceLegsAnim( int anim ) {
 	PM_StartLegsAnim( anim );
 }
 
-
 /*
 ==================
 PM_ClipVelocity
@@ -228,7 +227,6 @@ static void PM_Friction( void ) {
 	vel[2] = vel[2] * newspeed;
 }
 
-
 /*
 ==============
 PM_Accelerate
@@ -314,7 +312,7 @@ static float PM_CmdScale( usercmd_t *cmd ) {
 ================
 PM_SetMovementDir
 
-Determine the rotation of the legs relative
+Determine the rotation of the legs reletive
 to the facing dir
 ================
 */
@@ -355,12 +353,18 @@ static void PM_SetMovementDir( void ) {
 PM_CheckJump
 =============
 */
-static qboolean PM_CheckJump( void ) {
+qboolean PM_CheckJump( void ) {
+
 	if ( pm->ps->pm_flags & PMF_RESPAWNED ) {
 		return qfalse;		// don't allow jump until all buttons are up
 	}
 
 	if ( pm->cmd.upmove < 10 ) {
+		if (pm->ps->stats[STAT_PRE_JUMPPAD_SPEED] != 0) {
+			//Com_Printf("Destroying %d of jumppad energy\n", pm->ps->stats[STAT_PRE_JUMPPAD_SPEED]);
+			// Not jumping means the stored energy is lost.
+			pm->ps->stats[STAT_PRE_JUMPPAD_SPEED] = 0;
+		}
 		// not holding jump
 		return qfalse;
 	}
@@ -372,12 +376,68 @@ static qboolean PM_CheckJump( void ) {
 		return qfalse;
 	}
 
+	// Jumppad energy conservation (in horizontal plane at least)
+	if (pm->ps->stats[STAT_PRE_JUMPPAD_SPEED] != 0) {
+
+		//float hzMagnitude = sqrt (
+		//		(pm->ps->velocity[0]) * (pm->ps->velocity[0])
+		//	  + (pm->ps->velocity[1]) * (pm->ps->velocity[1]));
+		//float scale = (pm->ps->stats[STAT_PRE_JUMPPAD_SPEED] + hzMagnitude)
+		//				/ hzMagnitude;
+		//Com_Printf("start Velocity[%f, %f]\n", pm->ps->velocity[0], pm->ps->velocity[1]);
+		//Com_Printf("Using %d of jumppad energy\n", pm->ps->stats[STAT_PRE_JUMPPAD_SPEED]);
+		//Com_Printf("Scale: %f \n", scale);
+
+		//pm->ps->velocity[0] *= scale;
+		//pm->ps->velocity[1] *= scale;
+
+		pm->ps->velocity[0] += cos(pm->ps->viewangles[1] / (180/M_PI))
+										* pm->ps->stats[STAT_PRE_JUMPPAD_SPEED];
+		pm->ps->velocity[1] += sin(pm->ps->viewangles[1] / (180/M_PI))
+										* pm->ps->stats[STAT_PRE_JUMPPAD_SPEED];
+
+
+		//Com_Printf("end Velocity[%f, %f]\n", pm->ps->velocity[0], pm->ps->velocity[1]);
+		pm->ps->stats[STAT_PRE_JUMPPAD_SPEED] = 0;
+	}
+
+
+
 	pml.groundPlane = qfalse;		// jumping away
 	pml.walking = qfalse;
 	pm->ps->pm_flags |= PMF_JUMP_HELD;
 
 	pm->ps->groundEntityNum = ENTITYNUM_NONE;
-	pm->ps->velocity[2] = JUMP_VELOCITY;
+	if (pm->ps->velocity[2] <= 0)
+		pm->ps->velocity[2] = JUMP_VELOCITY;
+	else // allows mid-air jumps to add to the upward momentum
+		// part of the airstep implementation
+		pm->ps->velocity[2] += JUMP_VELOCITY;
+
+	// Chain jumping
+	if (pm->ps->stats[STAT_JUMPTIME] > 0) {
+		float hspeed;
+		hspeed = sqrt(pm->ps->velocity[0]*pm->ps->velocity[0]
+		              + pm->ps->velocity[1]*pm->ps->velocity[1]);
+		pm->ps->velocity[2] += (hspeed < 500) ? 100 : (hspeed * 0.2);
+		// minum 100 extra z velocity, or height gain in line with speed.
+		pm->ps->stats[STAT_JUMPTIME] += 500; // more time from second jump on
+		// So the time you had left, will be added to the next jump
+	} else {
+		pm->ps->stats[STAT_JUMPTIME] = 400;
+	}
+	// !Chain jumping
+
+	// Ramp jumping
+	if (pml.groundTrace.plane.normal[0] > 0 || pml.groundTrace.plane.normal[1] > 0)
+	{
+		float hspeed;
+		hspeed = sqrt(pm->ps->velocity[0]*pm->ps->velocity[0]
+	              + pm->ps->velocity[1]*pm->ps->velocity[1]);
+		pm->ps->velocity[2] += (hspeed < 500) ? 100 : (hspeed * 0.2);
+	}
+	// !Ramp jumping
+
 	PM_AddEvent( EV_JUMP );
 
 	if ( pm->cmd.forwardmove >= 0 ) {
@@ -533,7 +593,7 @@ static void PM_WaterMove( void ) {
 	PM_SlideMove( qfalse );
 }
 
-#ifdef MISSIONPACK
+#if 1
 /*
 ===================
 PM_InvulnerabilityMove
@@ -591,69 +651,136 @@ static void PM_FlyMove( void ) {
 }
 
 
+
+static void CPM_PM_Aircontrol (pmove_t *pm, vec3_t wishdir, float wishspeed )
+{
+	float	zspeed, speed, dot, k;
+	int		i;
+
+	if ( (pm->ps->movementDir && pm->ps->movementDir !=4) || wishspeed == 0.0)
+		return; // can't control movement if not moveing forward or backward
+
+	zspeed = pm->ps->velocity[2];
+	pm->ps->velocity[2] = 0;
+	speed = VectorNormalize(pm->ps->velocity);
+
+	dot = DotProduct(pm->ps->velocity,wishdir);
+	k = 4800*dot*dot*pml.frametime;
+
+
+	//if (dot > 0) {	// we can't change direction while slowing down
+		for (i=0; i < 2; i++)
+			pm->ps->velocity[i] = pm->ps->velocity[i]*speed + wishdir[i]*k;
+		VectorNormalize(pm->ps->velocity);
+	//} else {
+
+	//}
+
+	for (i=0; i < 2; i++)
+		pm->ps->velocity[i] *=speed;
+
+	pm->ps->velocity[2] = zspeed;
+}
+
+
 /*
 ===================
 PM_AirMove
 
 ===================
 */
-static void PM_AirMove( void ) {
+void PM_AirMove( void ) {
 	int			i;
-	vec3_t		wishvel;
-	float		fmove, smove;
-	vec3_t		wishdir;
-	float		wishspeed;
-	float		scale;
-	usercmd_t	cmd;
+		vec3_t		wishvel;
+		float		fmove, smove;
+		vec3_t		wishdir;
+		float		wishspeed;
+		float		scale;
+		usercmd_t	cmd;
 
-	PM_Friction();
+		float		accel; // CPM
+		float		wishspeed2; // CPM
 
-	fmove = pm->cmd.forwardmove;
-	smove = pm->cmd.rightmove;
+		PM_Friction();
 
-	cmd = pm->cmd;
-	scale = PM_CmdScale( &cmd );
+		fmove = pm->cmd.forwardmove;
+		smove = pm->cmd.rightmove;
 
-	// set the movementDir so clients can rotate the legs for strafing
-	PM_SetMovementDir();
+		cmd = pm->cmd;
+		scale = PM_CmdScale( &cmd );
 
-	// project moves down to flat plane
-	pml.forward[2] = 0;
-	pml.right[2] = 0;
-	VectorNormalize (pml.forward);
-	VectorNormalize (pml.right);
+		// set the movementDir so clients can rotate the legs for strafing
+		PM_SetMovementDir();
 
-	for ( i = 0 ; i < 2 ; i++ ) {
-		wishvel[i] = pml.forward[i]*fmove + pml.right[i]*smove;
-	}
-	wishvel[2] = 0;
+		// project moves down to flat plane
+		pml.forward[2] = 0;
+		pml.right[2] = 0;
+		VectorNormalize (pml.forward);
+		VectorNormalize (pml.right);
 
-	VectorCopy (wishvel, wishdir);
-	wishspeed = VectorNormalize(wishdir);
-	wishspeed *= scale;
+		for ( i = 0 ; i < 2 ; i++ ) {
+			wishvel[i] = pml.forward[i]*fmove + pml.right[i]*smove;
+		}
+		wishvel[2] = 0;
 
-	// not on ground, so little effect on velocity
-	PM_Accelerate (wishdir, wishspeed, pm_airaccelerate);
+		VectorCopy (wishvel, wishdir);
+		wishspeed = VectorNormalize(wishdir);
+		wishspeed *= scale;
 
-	// we may have a ground plane that is very steep, even
-	// though we don't have a groundentity
-	// slide along the steep plane
-	if ( pml.groundPlane ) {
-		PM_ClipVelocity (pm->ps->velocity, pml.groundTrace.plane.normal, 
-			pm->ps->velocity, OVERCLIP );
-	}
+		// CPM: Air Control
+		wishspeed2 = wishspeed;
+		if (DotProduct(pm->ps->velocity, wishdir) < 0)
+			accel = 3; // to not break so much in the air,
+		// to allow more fine grained flight control
+		else
+			accel = pm_airaccelerate;
+		if (pm->ps->movementDir == 2 || pm->ps->movementDir == 6)
+		{
+			if (wishspeed > 30)
+				wishspeed = 30;
+			accel = 70;
+		}
+		// !CPM
 
-#if 0
-	//ZOID:  If we are on the grapple, try stair-stepping
-	//this allows a player to use the grapple to pull himself
-	//over a ledge
-	if (pm->ps->pm_flags & PMF_GRAPPLE_PULL)
+		if (pm->ps->pm_flags & PMF_DUCKED) {
+			// air diving! Sacrifice upward velocity, for horizontal speed.
+			float vmc; // how much vertical momentum is subtracted
+			vmc = pml.msec / 4;
+			if (pm->ps->velocity[2] > 0)
+			{ 	// only upward momentum is converted
+				if (vmc > pm->ps->velocity[2]) {
+					vmc = pm->ps->velocity[2];
+				}
+				pm->ps->velocity[0] += wishdir[0] * 4 * vmc;
+				pm->ps->velocity[1] += wishdir[1] * 4 * vmc;
+			}	// when we have downward momentum, just increase it.
+			pm->ps->velocity[2] -= pml.msec / 4;
+		}
+
+		// CPM: Air control
+		PM_Accelerate (wishdir, wishspeed, accel);
+		CPM_PM_Aircontrol (pm, wishdir, wishspeed2);
+		// !CPM
+
+		// we may have a ground plane that is very steep, even
+		// though we don't have a groundentity
+		// slide along the steep plane
+		if ( pml.groundPlane ) {
+			PM_ClipVelocity (pm->ps->velocity, pml.groundTrace.plane.normal,
+				pm->ps->velocity, OVERCLIP );
+		}
+
+	#if 0
+		//ZOID:  If we are on the grapple, try stair-stepping
+		//this allows a player to use the grapple to pull himself
+		//over a ledge
+		if (pm->ps->pm_flags & PMF_GRAPPLE_PULL)
+			PM_StepSlideMove ( qtrue );
+		else
+			PM_SlideMove ( qtrue );
+	#endif
+
 		PM_StepSlideMove ( qtrue );
-	else
-		PM_SlideMove ( qtrue );
-#endif
-
-	PM_StepSlideMove ( qtrue );
 }
 
 /*
@@ -697,7 +824,9 @@ static void PM_WalkMove( void ) {
 	float		scale;
 	usercmd_t	cmd;
 	float		accelerate;
+	float		hVel;
 	float		vel;
+	qboolean	sliding;
 
 	if ( pm->waterlevel > 2 && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
 		// begin swimming
@@ -716,10 +845,23 @@ static void PM_WalkMove( void ) {
 		return;
 	}
 
-	PM_Friction ();
+	hVel = sqrt(pm->ps->velocity[0]*pm->ps->velocity[0] +
+			pm->ps->velocity[1]*pm->ps->velocity[1]);
 
-	fmove = pm->cmd.forwardmove;
-	smove = pm->cmd.rightmove;
+	sliding = (pm->ps->pm_flags & PMF_DUCKED) && hVel > 300;
+
+	if (!sliding) {
+		PM_Friction ();
+		fmove = pm->cmd.forwardmove;
+		smove = pm->cmd.rightmove;
+	} else {
+		// fire SLIDE_MELEE event
+		PM_AddEvent(EV_SLIDE_MELEE);
+		// cannot control movement while sliding
+		fmove = 0;
+		smove = 0;
+	}
+
 
 	cmd = pm->cmd;
 	scale = PM_CmdScale( &cmd );
@@ -746,10 +888,10 @@ static void PM_WalkMove( void ) {
 
 	VectorCopy (wishvel, wishdir);
 	wishspeed = VectorNormalize(wishdir);
-	wishspeed *= scale;
+	if (!sliding) wishspeed *= scale;
 
 	// clamp the speed lower if ducking
-	if ( pm->ps->pm_flags & PMF_DUCKED ) {
+	if ((pm->ps->pm_flags & PMF_DUCKED) && !sliding) {
 		if ( wishspeed > pm->ps->speed * pm_duckScale ) {
 			wishspeed = pm->ps->speed * pm_duckScale;
 		}
@@ -914,6 +1056,25 @@ static int PM_FootstepForSurface( void ) {
 
 
 /*
+PM_BounceForward
+
+Does something with the vertical momentum.
+
+*/
+static void PM_BounceForward( void ) {
+
+	if (pml.previous_velocity[0] != 0 || pml.previous_velocity[1] != 0)
+	{
+		// subtract, because velocity[2] is negative
+		// retention above 25% of the z velocity makes it a gimmick
+		pm->ps->velocity[0] -= cos(pm->ps->viewangles[1] / (180/M_PI))
+								* pml.previous_velocity[2] * 0.2;
+		pm->ps->velocity[1] -= sin(pm->ps->viewangles[1] / (180/M_PI))
+								* pml.previous_velocity[2] * 0.2;
+	}
+}
+
+/*
 =================
 PM_CrashLand
 
@@ -982,17 +1143,20 @@ static void PM_CrashLand( void ) {
 	// want to take damage or play a crunch sound
 	if ( !(pml.groundTrace.surfaceFlags & SURF_NODAMAGE) )  {
 		if ( delta > 60 ) {
+			PM_BounceForward();
 			PM_AddEvent( EV_FALL_FAR );
 		} else if ( delta > 40 ) {
+			PM_BounceForward();
 			// this is a pain grunt, so don't play it if dead
 			if ( pm->ps->stats[STAT_HEALTH] > 0 ) {
 				PM_AddEvent( EV_FALL_MEDIUM );
 			}
 		} else if ( delta > 7 ) {
+			PM_BounceForward();
 			PM_AddEvent( EV_FALL_SHORT );
-		} else {
-			PM_AddEvent( PM_FootstepForSurface() );
-		}
+		} //else {
+			//PM_AddEvent( PM_FootstepForSurface() );
+		//} No footsteps!
 	}
 
 	// start footstep cycle over
@@ -1089,6 +1253,8 @@ static void PM_GroundTraceMissed( void ) {
 				PM_ForceLegsAnim( LEGS_JUMPB );
 				pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
 			}
+		} else if (PM_CheckJump()) {
+
 		}
 	}
 
@@ -1657,7 +1823,7 @@ static void PM_Weapon( void ) {
 		addTime = 100;
 		break;
 	case WP_GRENADE_LAUNCHER:
-		addTime = 800;
+		addTime = 600;
 		break;
 	case WP_ROCKET_LAUNCHER:
 		addTime = 800;
@@ -1669,12 +1835,12 @@ static void PM_Weapon( void ) {
 		addTime = 1500;
 		break;
 	case WP_BFG:
-		addTime = 200;
+		addTime = 1100;
 		break;
 	case WP_GRAPPLING_HOOK:
 		addTime = 400;
 		break;
-#ifdef MISSIONPACK
+#if 1
 	case WP_NAILGUN:
 		addTime = 1000;
 		break;
@@ -1687,7 +1853,7 @@ static void PM_Weapon( void ) {
 #endif
 	}
 
-#ifdef MISSIONPACK
+#if 1
 	if( bg_itemlist[pm->ps->stats[STAT_PERSISTANT_POWERUP]].giTag == PW_SCOUT ) {
 		addTime /= 1.5;
 	}
@@ -1704,6 +1870,30 @@ static void PM_Weapon( void ) {
 	pm->ps->weaponTime += addTime;
 }
 
+
+/** Reduces weapon time */
+void PM_ReduceWeaponTime(int milis) {
+	pm->ps->weaponTime -= milis;
+}
+
+/**
+ * Handles Melee attacks (excluding gauntled)
+ * These attacks are generally aimed at producing knockback more than damage.
+ */
+static void PM_Melee() {
+	if ((pm->cmd.buttons & BUTTON_MELEE) && !(pm->ps->pm_flags & PMF_DUCKED) &&
+			pm->ps->stats[STAT_MELEETIME] == 0) {
+		// not adjusting PM_Weapon for this, there is no ammo, no inter-weapon timing.
+		// check for using melee button
+		// Do some timing, so the button can only be held for 100ms.
+
+		PM_AddEvent(EV_MELEE);
+		PM_StartTorsoAnim( TORSO_ATTACK2 );
+		pm->ps->stats[STAT_MELEETIME] += 300;
+
+	} // melee attack while ducking is handled in PM_WalkMove
+}
+
 /*
 ================
 PM_Animate
@@ -1717,7 +1907,7 @@ static void PM_Animate( void ) {
 			pm->ps->torsoTimer = TIMER_GESTURE;
 			PM_AddEvent( EV_TAUNT );
 		}
-#ifdef MISSIONPACK
+#if 1
 	} else if ( pm->cmd.buttons & BUTTON_GETFLAG ) {
 		if ( pm->ps->torsoTimer == 0 ) {
 			PM_StartTorsoAnim( TORSO_GETFLAG );
@@ -1790,7 +1980,7 @@ static void PM_DropTimers( void ) {
 PM_UpdateViewAngles
 
 This can be used as another entry point when only the viewangles
-are being updated instead of a full move
+are being updated isntead of a full move
 ================
 */
 void PM_UpdateViewAngles( playerState_t *ps, const usercmd_t *cmd ) {
@@ -1844,7 +2034,7 @@ void PmoveSingle (pmove_t *pmove) {
 	pm->watertype = 0;
 	pm->waterlevel = 0;
 
-	if ( pm->ps->stats[STAT_HEALTH] <= 0 ) {
+	if ( pm->ps->stats[STAT_HEALTH] <= 0) {
 		pm->tracemask &= ~CONTENTS_BODY;	// corpses can fly through bodies
 	}
 
@@ -1908,8 +2098,16 @@ void PmoveSingle (pmove_t *pmove) {
 	pml.frametime = pml.msec * 0.001;
 
 	// update the viewangles
-	PM_UpdateViewAngles( pm->ps, &pm->cmd );
 
+	PM_UpdateViewAngles( pm->ps, &pm->cmd );
+	//if (c_pmove % 100 == 0) {
+	//	Com_Printf("Updated angles %1.2f %1.2f %1.2f\n",
+	//	pm->ps->viewangles[0], pm->ps->viewangles[1], pm->ps->viewangles[2]);
+	//	Com_Printf("Delta angles %i %i %i\n",
+	//			pm->ps->delta_angles[0], pm->ps->delta_angles[1], pm->ps->delta_angles[2]);
+	//	Com_Printf("Cmd angles %i %i %i\n",
+	//			pm->cmd.angles[0], pm->cmd.angles[1], pm->cmd.angles[2]);
+	//}
 	AngleVectors (pm->ps->viewangles, pml.forward, pml.right, pml.up);
 
 	if ( pm->cmd.upmove < 10 ) {
@@ -1924,7 +2122,7 @@ void PmoveSingle (pmove_t *pmove) {
 		pm->ps->pm_flags &= ~PMF_BACKWARDS_RUN;
 	}
 
-	if ( pm->ps->pm_type >= PM_DEAD ) {
+	if ( pm->ps->pm_type >= PM_DEAD) { // PM_FROZEN >= PM_DEAD
 		pm->cmd.forwardmove = 0;
 		pm->cmd.rightmove = 0;
 		pm->cmd.upmove = 0;
@@ -1944,7 +2142,7 @@ void PmoveSingle (pmove_t *pmove) {
 	}
 
 	if (pm->ps->pm_type == PM_FREEZE) {
-		return;		// no movement at all
+		return;
 	}
 
 	if ( pm->ps->pm_type == PM_INTERMISSION || pm->ps->pm_type == PM_SPINTERMISSION) {
@@ -1966,12 +2164,17 @@ void PmoveSingle (pmove_t *pmove) {
 	}
 
 	PM_DropTimers();
+	// CPM: Chain jump timer
+	if (pm->ps->stats[STAT_JUMPTIME] > 0) pm->ps->stats[STAT_JUMPTIME] -= pml.msec;
+	// !CPM
 
-#ifdef MISSIONPACK
-	if ( pm->ps->powerups[PW_INVULNERABILITY] ) {
-		PM_InvulnerabilityMove();
-	} else
-#endif
+	if (pm->ps->stats[STAT_MELEETIME] > 0) {
+		if (pm->ps->stats[STAT_MELEETIME] > pml.msec)
+			pm->ps->stats[STAT_MELEETIME] -= pml.msec;
+		else
+			pm->ps->stats[STAT_MELEETIME] = 0;
+	}
+
 	if ( pm->ps->powerups[PW_FLIGHT] ) {
 		// flight powerup doesn't allow jump and has different friction
 		PM_FlyMove();
@@ -2001,6 +2204,9 @@ void PmoveSingle (pmove_t *pmove) {
 	// weapons
 	PM_Weapon();
 
+	// Check Melee attack.
+	PM_Melee();
+
 	// torso animation
 	PM_TorsoAnimation();
 
@@ -2011,9 +2217,9 @@ void PmoveSingle (pmove_t *pmove) {
 	PM_WaterEvents();
 
 	// snap some parts of playerstate to save network bandwidth
-	trap_SnapVector( pm->ps->velocity );
+	//trap_SnapVector( pm->ps->velocity );
+	// accurate, framerate independent physics
 }
-
 
 /*
 ================
@@ -2043,7 +2249,6 @@ void Pmove (pmove_t *pmove) {
 		int		msec;
 
 		msec = finalTime - pmove->ps->commandTime;
-
 		if ( pmove->pmove_fixed ) {
 			if ( msec > pmove->pmove_msec ) {
 				msec = pmove->pmove_msec;

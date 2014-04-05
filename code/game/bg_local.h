@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define	MIN_WALK_NORMAL	0.7f		// can't walk on very steep slopes
 
-#define	STEPSIZE		18
+#define	STEPSIZE		25			// was 18
 
 #define	JUMP_VELOCITY	270
 
@@ -79,4 +79,5 @@ void PM_AddEvent( int newEvent );
 qboolean	PM_SlideMove( qboolean gravity );
 void		PM_StepSlideMove( qboolean gravity );
 
-
+void		PM_AirMove( void );
+qboolean	PM_CheckJump(void);

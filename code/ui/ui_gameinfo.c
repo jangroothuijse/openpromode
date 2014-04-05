@@ -164,7 +164,7 @@ void UI_LoadArenas( void ) {
 	}
 	trap_Print( va( "%i arenas parsed\n", ui_numArenas ) );
 	if (UI_OutOfMemory()) {
-		trap_Print(S_COLOR_YELLOW"WARNING: not enough memory in pool to load all arenas\n");
+		trap_Print(S_COLOR_YELLOW"WARNING: not anough memory in pool to load all arenas\n");
 	}
 
 	for( n = 0; n < ui_numArenas; n++ ) {
@@ -189,7 +189,7 @@ void UI_LoadArenas( void ) {
 			if( strstr( type, "ctf" ) ) {
 				uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << GT_CTF);
 			}
-			if( strstr( type, "oneflag" ) ) {
+			if( strstr( type, "oneflag" ) ) {;
 				uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << GT_1FCTF);
 			}
 			if( strstr( type, "overload" ) ) {

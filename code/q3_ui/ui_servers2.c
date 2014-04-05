@@ -88,8 +88,6 @@ MULTIPLAYER MENU (SERVER BROWSER)
 #define UIAS_GLOBAL5			5
 #define UIAS_FAVORITES			6
 
-#define UI_MAX_MASTER_SERVERS	5
-
 #define SORT_HOST			0
 #define SORT_MAP			1
 #define SORT_CLIENTS		2
@@ -244,8 +242,8 @@ typedef struct {
 static arenaservers_t	g_arenaservers;
 
 
-static servernode_t		g_globalserverlist[UI_MAX_MASTER_SERVERS][MAX_GLOBALSERVERS];
-static int				g_numglobalservers[UI_MAX_MASTER_SERVERS];
+static servernode_t		g_globalserverlist[MAX_GLOBALSERVERS];
+static int				g_numglobalservers;
 static servernode_t		g_localserverlist[MAX_LOCALSERVERS];
 static int				g_numlocalservers;
 static servernode_t		g_favoriteserverlist[MAX_FAVORITESERVERS];
@@ -716,6 +714,7 @@ static void ArenaServers_Insert( char* adrstr, char* info, int pingtime )
 		servernodeptr->gametype = i;
 		Q_strncpyz( servernodeptr->gamename, gamenames[i], sizeof(servernodeptr->gamename) );
 	}
+
 }
 
 
@@ -782,6 +781,11 @@ void ArenaServers_LoadFavorites( void )
 	{
 		trap_Cvar_VariableStringBuffer( va("server%d",i+1), adrstr, MAX_ADDRESSLENGTH );
 		if (!adrstr[0])
+			continue;
+
+		// quick sanity check to avoid slow domain name resolving
+		// first character must be numeric
+		if (adrstr[0] < '0' || adrstr[0] > '9')
 			continue;
 
 		// favorite server addresses must be maintained outside refresh list
@@ -1153,8 +1157,8 @@ int ArenaServers_SetType( int type )
 	case UIAS_GLOBAL4:
 	case UIAS_GLOBAL5:
 		g_arenaservers.remove.generic.flags |= (QMF_INACTIVE|QMF_HIDDEN);
-		g_arenaservers.serverlist = g_globalserverlist[type-UIAS_GLOBAL1];
-		g_arenaservers.numservers = &g_numglobalservers[type-UIAS_GLOBAL1];
+		g_arenaservers.serverlist = g_globalserverlist;
+		g_arenaservers.numservers = &g_numglobalservers;
 		g_arenaservers.maxservers = MAX_GLOBALSERVERS;
 		break;
 
@@ -1580,12 +1584,12 @@ static void ArenaServers_MenuInit( void ) {
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.showempty );
 
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.mappic );
+	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.list );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.status );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.statusbar );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.arrows );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.up );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.down );
-	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.list );
 
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.remove );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.back );
